@@ -42,6 +42,13 @@ extern u_long elf_hwcap2;
 extern char freebsd64_sigcode[];
 extern int freebsd64_szsigcode;
 #endif
+extern	char	switcher_cocall[];
+extern	char	switcher_cocall_copy_start[];
+extern	char	switcher_cocall_copy_end[];
+extern	char	switcher_cocall_copy_onfault[];
+extern	int	szswitcher_cocall;
+extern	char	switcher_coaccept[];
+extern	int	szswitcher_coaccept;
 
 struct dumperinfo;
 

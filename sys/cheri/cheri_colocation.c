@@ -176,6 +176,7 @@ colocation_fetch_caller_scb(struct thread *td, struct switchercb *scbp)
 		/*
 		 * We've never called cosetup(2).
 		 */
+		COLOCATION_DEBUG("never called cosetup");
 		return (false);
 	}
 
@@ -186,6 +187,10 @@ colocation_fetch_caller_scb(struct thread *td, struct switchercb *scbp)
 		/*
 		 * Not in cocall.
 		 */
+		COLOCATION_DEBUG("not in cocall (caller_scb %#lp tag %d, len %zd)",
+		   scbp->scb_caller_scb,
+		   cheri_gettag(scbp->scb_caller_scb),
+		   cheri_getlen(scbp->scb_caller_scb));
 		return (false);
 	}
 
@@ -352,6 +357,12 @@ colocation_unborrow(struct thread *td)
 	    __func__, (long)peertd->td_frame->tf_t[0],
 	    td, td->td_proc->p_pid, td->td_proc->p_comm,
 	    peertd, peertd->td_proc->p_pid, peertd->td_proc->p_comm));
+#elif defined(__aarch64__)
+	KASSERT(td->td_frame->tf_x[8] != SYS_copark,
+	    ("%s: unborrowing for copark(); peer td_sa.code %ld; td %p, pid %d (%s); peer td %p, peer pid %d (%s)\n",
+	    __func__, (long)peertd->td_frame->tf_x[8],
+	    td, td->td_proc->p_pid, td->td_proc->p_comm,
+	    peertd, peertd->td_proc->p_pid, peertd->td_proc->p_comm));
 #else
 #error "what architecture is this?"
 #endif
@@ -427,6 +438,12 @@ colocation_unborrow(struct thread *td)
 	    __func__, (long)td->td_frame->tf_t[0], SYS_copark, (long)peertd->td_frame->tf_t[0],
 	    td, td->td_proc->p_pid, td->td_proc->p_comm,
 	    peertd, peertd->td_proc->p_pid, peertd->td_proc->p_comm));
+#elif defined(__aarch64__)
+	KASSERT(td->td_frame->tf_x[8] == SYS_copark,
+	    ("%s: td_sa.code %ld != SYS_copark %d; peer td_sa.code %ld; td %p, pid %d (%s); peer td %p, peer pid %d (%s)\n",
+	    __func__, (long)td->td_frame->tf_x[8], SYS_copark, (long)peertd->td_frame->tf_x[8],
+	    td, td->td_proc->p_pid, td->td_proc->p_comm,
+	    peertd, peertd->td_proc->p_pid, peertd->td_proc->p_comm));
 #else
 #error "what architecture is this?"
 #endif
@@ -480,6 +497,37 @@ colocation_update_tls(struct thread *td)
 	colocation_copyout_scb(td->td_scb, &scb);
 }
 #endif
+
+#ifdef __aarch64__
+int
+copyuser(const void * __restrict __capability src,
+    void * __restrict __capability dst, size_t len)
+{
+	void *tmpbuf;
+	int error;
+
+	if (len == 0)
+		return (0);
+
+	KASSERT(src != NULL, ("%s: NULL src", __func__));
+	KASSERT(dst != NULL, ("%s: NULL dst", __func__));
+
+	tmpbuf = malloc(len, M_TEMP, M_WAITOK);
+	error = copyincap(src, tmpbuf, len);
+	if (error != 0) {
+		COLOCATION_DEBUG("copyin failed with error %d", error);
+		goto out;
+	}
+	error = copyoutcap(tmpbuf, dst, len);
+	if (error != 0) {
+		COLOCATION_DEBUG("copyout failed with error %d", error);
+		goto out;
+	}
+out:
+	free(tmpbuf, M_TEMP);
+	return (error);
+}
+#endif /* __aarch64__ */
 
 /*
  * Setup the per-thread switcher control block.
@@ -546,8 +594,14 @@ switcher_code_cap(struct thread *td, ptraddr_t base, size_t length)
 	 */
 	codecap = cheri_capability_build_user_rwx(CHERI_CAP_USER_CODE_PERMS,
 	    base, length, 0);
+#ifndef __aarch64__
+	/*
+	 * XXX: Somehow makes every attempt at ldr/str in the switcher
+	 *      fail with capability fault.
+	 */
 	if (SV_PROC_FLAG(td->td_proc, SV_CHERI))
 		codecap = cheri_capmode(codecap);
+#endif
 	return (cheri_seal(codecap, switcher_sealcap));
 }
 
@@ -1085,6 +1139,19 @@ db_print_scb(struct thread *td, struct switchercb *scb)
 	db_printf(       "    scb_inlen (a6):    %zd\n", scb->scb_inlen);
 #endif
 	db_print_cap(td, "    scb_cookiep:       ", scb->scb_cookiep);
+#ifdef __aarch64__
+	db_print_cap(td, "    scb_c19:           ", scb->scb_c19);
+	db_print_cap(td, "    scb_c20:           ", scb->scb_c20);
+	db_print_cap(td, "    scb_c21:           ", scb->scb_c21);
+	db_print_cap(td, "    scb_c22:           ", scb->scb_c22);
+	db_print_cap(td, "    scb_c23:           ", scb->scb_c23);
+	db_print_cap(td, "    scb_c24:           ", scb->scb_c24);
+	db_print_cap(td, "    scb_c25:           ", scb->scb_c25);
+	db_print_cap(td, "    scb_c26:           ", scb->scb_c26);
+	db_print_cap(td, "    scb_c27:           ", scb->scb_c27);
+	db_print_cap(td, "    scb_c28:           ", scb->scb_c28);
+	db_print_cap(td, "    scb_tls:           ", scb->scb_tls);
+#endif
 }
 
 void
@@ -1124,6 +1191,11 @@ db_get_stack_pid(struct thread *td)
 //	db_printf("%s: td: %p; td_frame %p; tf_sp: %#lp; csp addr: %lx\n",
 //	    __func__, td, td->td_frame,
 //	    (void * __capability)td->td_frame->tf_sp, (long)addr);
+#elif defined(__aarch64__)
+	addr = __builtin_cheri_address_get(td->td_frame->tf_sp);
+	db_printf("%s: td: %p; td_frame %p; tf_sp: %#lp; csp addr: %lx\n",
+	    __func__, td, td->td_frame,
+	    (void * __capability)td->td_frame->tf_sp, (long)addr);
 #else
 #error "what architecture is this?"
 #endif
