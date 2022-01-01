@@ -45,6 +45,7 @@ SRCS= \
 	reloc.c \
 	rtld.c \
 	rtld_lock.c \
+	rtld_sandbox.c \
 	map_object.c \
 	xmalloc.c \
 	debug.c \
