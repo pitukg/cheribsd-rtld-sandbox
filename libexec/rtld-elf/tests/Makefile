@@ -2,13 +2,12 @@
 
 .include <src.opts.mk>
 
-SUBDIR+=	libhelloworld libprints libpythagoras target dlopen_sandbox_target
+SUBDIR+=	libpythagoras target
 
-SUBDIR_DEPEND_target=	libhelloworld libprints libpythagoras
+SUBDIR_DEPEND_target=	libpythagoras
 
 ATF_TESTS_C=	ld_library_pathfds
 ATF_TESTS_C+=	ld_preload_fds
-ATF_TESTS_C+=	ld_sandbox_checks
 
 .for t in ${ATF_TESTS_C}
 SRCS.$t=	$t.c common.c
@@ -19,5 +18,7 @@ WARNS?=		3
 .if ${MACHINE_ABI:Mpurecap}
 SUBDIR+=	cheri
 .endif
+
+SUBDIR+=	sandbox
 
 .include <bsd.test.mk>

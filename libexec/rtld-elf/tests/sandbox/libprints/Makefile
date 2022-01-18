@@ -5,8 +5,8 @@
 LIB=		prints
 SHLIB_MAJOR=	0
 
-LIBDIR=		${TESTSBASE}/libexec/rtld-elf
-SHLIBDIR=	${TESTSBASE}/libexec/rtld-elf
+LIBDIR=		${TESTSBASE}/libexec/rtld-elf/sandbox
+SHLIBDIR=	${TESTSBASE}/libexec/rtld-elf/sandbox
 
 SRCS=		prints.c
 

@@ -1,6 +1,6 @@
 /*-
- * Copyright 2014 Jonathan Anderson.
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * Copyright 2021 Mariusz Zaborski <oshogbo@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,27 +25,40 @@
  * $FreeBSD$
  */
 
-#include <dlfcn.h>
-#include <stdio.h>
+#include <atf-c.h>
 
-int main(int argc, char *argv[])
+#include "./utils.h"
+
+ATF_TC(libhelloworld_passes);
+ATF_TC_HEAD(libhelloworld_passes, tc)
 {
-    if (argc != 2)
-    {
-        printf("Usage: <dlopen_sandbox_target> SHARED_OBJECT_NAME\n");
-        return 1;
-    }
+    atf_tc_set_md_var(tc, "descr",
+        "Check that we can dlopen_sandbox() an empty library");
+}
+ATF_TC_BODY(libhelloworld_passes, tc)
+{
+    test_dlopen_sandbox_success("libhello_world.so.0");
+}
 
-    void *obj = dlopen_sandbox(argv[1], RTLD_NOW);
+ATF_TC(libprints_fails);
+ATF_TC_HEAD(libprints_fails, tc)
+{
+    atf_tc_set_md_var(tc, "descr",
+        "Check that dlopen_sandbox() fails for a library using printf");
+}
+ATF_TC_BODY(libprints_fails, tc)
+{
+    test_dlopen_sandbox_failure("libprints.so.0",
+        "Invalid dependencies for sandboxing");
+}
 
-    if (obj)
-    {
-        fprintf(stdout, "Success.\n");
-        return 0;
-    }
-    else
-    {
-        fprintf(stderr, "Failed.\n");
-        return 2;
-    }
+
+/* Register test cases with ATF. */
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, libhelloworld_passes);
+    ATF_TP_ADD_TC(tp, libprints_fails);
+
+	return atf_no_error();
 }
