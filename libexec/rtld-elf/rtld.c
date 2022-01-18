@@ -4053,20 +4053,22 @@ dlopen_sandbox(const char *name, int mode)
     obj = dlopen(name, mode);
     if (obj) {
         if (obj->dl_refcount > 1) {
-            msg("Not allowed to load sandboxed library multiple times");
-            abort(); // TODO: instead of abort, dlclose()
+            _rtld_error("Not allowed to load sandboxed library multiple times");
+            dlclose(obj);
+            return (NULL);
         }
 
 
         for (unsigned int symoffset = 0U; symoffset < obj->dynsymcount; ++symoffset) {
             const Elf_Sym *symbol = obj->symtab + symoffset;
             const char *symname = obj->strtab + symbol->st_name;
-            unsigned char bind = ELF_ST_BIND(symbol->st_info);
+            unsigned char bind __unused = ELF_ST_BIND(symbol->st_info);
             unsigned char type = ELF_ST_TYPE(symbol->st_info);
             if (type != STT_NOTYPE &&
                 symbol->st_shndx == SHN_UNDEF &&
                 !check_symbol_allowed_in_sandbox(symname, type)) {
-                dlclose(obj);
+                _rtld_error("Invalid symbol for sandboxing: %s", symname);
+//                dlclose(obj);
                 return (NULL);
             }
             dbg("dynsym: %s\tbind=%d\ttype=%d\n", symname, bind, type);
