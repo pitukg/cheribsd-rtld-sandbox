@@ -97,7 +97,7 @@ foreach(_hdrpath ${_casper_hdrs})
 endforeach()
 file(CREATE_LINK "${CMAKE_SOURCE_DIR}/lib/libcapsicum/capsicum_helpers.h" ${TMPSYSROOT}/include/capsicum_helpers.h SYMBOLIC)
 file(CREATE_LINK "${CMAKE_SOURCE_DIR}/lib/libcasper/libcasper/libcasper.h" ${TMPSYSROOT}/include/libcasper.h SYMBOLIC)
-add_compile_definitions(HAVE_CASPER=1)
+add_compile_definitions(HAVE_CASPER=1, __CHERI_PURE_CAPABILITY__=1)
 
 # TODO: should only be for CHERI
 file(MAKE_DIRECTORY ${TMPSYSROOT}/include/c++)
@@ -371,3 +371,4 @@ target_compile_definitions(fake_kernel PRIVATE -D__ELF_CHERI=1 -D__ELF_WORD_SIZE
 add_compile_options("-include${CMAKE_BINARY_DIR}/cheri_purecap.h")
 
 add_subdirectory(libexec/rtld-elf)
+add_subdirectory(benchmark)
