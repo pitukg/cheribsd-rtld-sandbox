@@ -73,6 +73,10 @@ __FBSDID("$FreeBSD$");
 #include "notes.h"
 #include "rtld_libc.h"
 
+#ifdef __JETBRAINS_IDE__
+#include "cheri_purecap.h"
+#endif
+
 /* Types. */
 typedef void (*func_ptr_type)(void);
 typedef void * (*path_enum_proc) (const char *path, size_t len, void *arg);

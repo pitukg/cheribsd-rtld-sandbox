@@ -97,7 +97,7 @@ foreach(_hdrpath ${_casper_hdrs})
 endforeach()
 file(CREATE_LINK "${CMAKE_SOURCE_DIR}/lib/libcapsicum/capsicum_helpers.h" ${TMPSYSROOT}/include/capsicum_helpers.h SYMBOLIC)
 file(CREATE_LINK "${CMAKE_SOURCE_DIR}/lib/libcasper/libcasper/libcasper.h" ${TMPSYSROOT}/include/libcasper.h SYMBOLIC)
-add_compile_definitions(HAVE_CASPER=1, __CHERI_PURE_CAPABILITY__=1)
+add_compile_definitions(HAVE_CASPER=1)
 
 # TODO: should only be for CHERI
 file(MAKE_DIRECTORY ${TMPSYSROOT}/include/c++)
@@ -110,6 +110,7 @@ file(WRITE ${CMAKE_BINARY_DIR}/cheri_builtins.h "
 #ifdef __JETBRAINS_IDE__
 // Pretend that we have capabilities in CLion
 #define __CHERI__
+#define __CHERI_PURE_CAPABILITY__
 #define __has_feature(x) __fake_has_feature_##x
 #define __fake_has_feature_capabilities 1
 #define __fake_has_feature_nullability 1
