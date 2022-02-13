@@ -4052,8 +4052,6 @@ dlopen_sandbox(const char *name, int mode)
 {
     Obj_Entry *obj;
 
-    trace();
-
     obj = dlopen(name, mode);
     if (obj) {
         if (obj->dl_refcount > 1) {
@@ -4061,7 +4059,6 @@ dlopen_sandbox(const char *name, int mode)
             dlclose(obj);
             return (NULL);
         }
-
 
         for (unsigned int symoffset = 0U; symoffset < obj->dynsymcount; ++symoffset) {
             const Elf_Sym *symbol = obj->symtab + symoffset;
@@ -4072,7 +4069,7 @@ dlopen_sandbox(const char *name, int mode)
                 symbol->st_shndx == SHN_UNDEF &&
                 !check_symbol_allowed_in_sandbox(symname, type)) {
                 _rtld_error("Invalid symbol for sandboxing: %s", symname);
-//                dlclose(obj);
+                dlclose(obj);
                 return (NULL);
             }
             dbg("dynsym: %s\tbind=%d\ttype=%d\n", symname, bind, type);
