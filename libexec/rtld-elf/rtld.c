@@ -1168,6 +1168,10 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
      * address. The value returned from reloc_jmpslot() is the value
      * that the trampoline needs.
      */
+#ifdef __CHERI_PURE_CAPABILITY__
+    if (trampoline_pages_append(&target, target))
+	rtld_die();
+#endif
     target = reloc_jmpslot(where, target, defobj, obj, rel);
     lock_release(rtld_bind_lock, &lockstate);
     return (target);

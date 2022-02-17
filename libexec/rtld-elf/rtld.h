@@ -168,6 +168,30 @@ typedef struct Struct_Sym_Match_Result {
     int vcount;
 } Sym_Match_Result;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+struct trampoline {
+	uintptr_t data;
+    void *push, *pop;
+	const char code[] __attribute__((cheri_no_subobject_bounds));
+};
+
+struct trampoline_page {
+	struct trampoline *cursor;		/* Points to start of unused space */
+	SLIST_ENTRY(trampoline_page) entries;	/* Points to start of next page */
+	struct trampoline trampolines[];	/* Points to start of trampolines */
+};
+
+SLIST_HEAD(trampoline_pages, trampoline_page);
+
+struct trampoline_stack {
+    void **cursor;
+    SLIST_ENTRY(trampoline_stack) entries;
+    void *buf[];
+};
+
+SLIST_HEAD(trampoline_stacks, trampoline_stack);
+#endif
+
 #define VER_INFO_HIDDEN	0x01
 
 /*

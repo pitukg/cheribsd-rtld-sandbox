@@ -31,6 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/types.h>
 
@@ -164,6 +165,124 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Auxinfo *aux)
 		*(uintcap_t *)where = init_cap_from_fragment(where, relocbase,
 		    pcc, (Elf_Addr)(uintptr_t)relocbase, rela->r_addend);
 	}
+}
+
+static void *partition(struct trampoline **inout, size_t len) {
+	void *hi = *inout;
+	void *lo = cheri_setbounds(hi, len);
+	*inout = lo;
+	vaddr_t top = cheri_gettop(lo);
+	size_t rem = cheri_gettop(hi) - top;
+	vaddr_t mask = CHERI_REPRESENTABLE_ALIGNMENT(rem);
+	hi = cheri_setaddress(hi, __align_up(top, mask));
+	return cheri_setbounds(hi, __align_down(rem, mask));
+}
+
+static int trampoline_stack_create(struct trampoline_stack **out) {
+	struct trampoline_stack *s = mmap(NULL,
+					  getpagesize(),
+					  PROT_READ | PROT_WRITE,
+					  MAP_ANON | MAP_PRIVATE,
+					  -1, 0);
+	if (s == MAP_FAILED)
+		return -1;
+	s->cursor = s->buf;
+	*out = cheri_setboundsexact(s, offsetof(typeof(*s), buf));
+	return 0;
+}
+
+static struct trampoline_stacks stks = SLIST_HEAD_INITIALIZER(stks);
+// static _Thread_local struct trampoline_stacks stks = SLIST_HEAD_INITIALIZER(stks);
+
+static int trampoline_stack_push(void *data) {
+
+	int n_retry = 0;
+	struct trampoline_stack *s = SLIST_FIRST(&stks);
+	goto start;
+
+retry:
+	if (n_retry++)
+		return -1;
+	if (trampoline_stack_create(&s))
+		return -1;
+	SLIST_INSERT_HEAD(&stks, s, entries);
+
+start:
+	if (!s)
+		goto retry;
+
+	void **p = cheri_setbounds(s->cursor++, sizeof(*p));
+	if (!cheri_gettag(p))
+		goto retry;
+
+	*p = data;
+
+	return 0;
+}
+
+static int trampoline_stack_pop(void **out) {
+	struct trampoline_stack *s = SLIST_FIRST(&stks);
+	*out = *(--s->cursor);
+	if (s->cursor == s->buf) {
+		if (munmap(s, getpagesize())) {
+			return -1;
+		}
+		SLIST_REMOVE_HEAD(&stks, entries);
+	}
+	return 0;
+}
+
+static int trampoline_page_create(struct trampoline_page **out) {
+	struct trampoline_page *p = mmap(NULL,
+					 getpagesize(),
+					 PROT_READ | PROT_WRITE | PROT_EXEC,
+					 MAP_ANON | MAP_PRIVATE,
+					 -1, 0);
+	if (p == MAP_FAILED)
+		return -1;
+	p->cursor = p->trampolines;
+	*out = cheri_setboundsexact(p, offsetof(typeof(*p), trampolines));
+	return 0;
+}
+
+int trampoline_pages_append(uintptr_t *out, uintptr_t data) {
+
+	return 0;
+	static struct trampoline_pages pgs = SLIST_HEAD_INITIALIZER(pgs);
+
+	extern const struct trampoline __start_trampoline_template;
+	const struct trampoline *template = &__start_trampoline_template;
+
+	int n_retry = 0;
+	struct trampoline_page *pg = SLIST_FIRST(&pgs);
+	goto start;
+
+retry:
+	if (n_retry++)
+		return -1;
+	if (trampoline_page_create(&pg))
+		return -1;
+	SLIST_INSERT_HEAD(&pgs, pg, entries);
+
+start:
+	if (!pg)
+		goto retry;
+
+	size_t len = cheri_getlen(template);
+
+	struct trampoline *t = __align_up(pg->cursor, _Alignof(typeof(*t)));
+	pg->cursor = partition(&t, len);
+	if (!cheri_gettag(t))
+		goto retry;
+
+	memcpy(t, template, len);
+	t->data = data;
+	t->push = trampoline_stack_push;
+	t->pop = trampoline_stack_pop;
+	t = cheri_clearperm(t, FUNC_PTR_REMOVE_PERMS);
+	*out = cheri_sealentry((uintptr_t)t->code | 1);
+
+	return 0;
 }
 #endif /* __CHERI_PURE_CAPABILITY__ */
 
@@ -408,6 +527,10 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 				continue;
 			}
 			target = (uintptr_t)make_function_pointer(def, defobj);
+#ifdef __CHERI_PURE_CAPABILITY__
+			if (trampoline_pages_append(&target, target))
+				return (-1);
+#endif
 			reloc_jmpslot(where, target, defobj, obj,
 			    (const Elf_Rel *)rela);
 			break;

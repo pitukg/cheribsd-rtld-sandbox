@@ -323,3 +323,53 @@ ENTRY(_rtld_tlsdesc_dynamic)
 	ret
 #endif /* defined(__CHERI_PURE_CAPABILITY__) */
 END(_rtld_tlsdesc_dynamic)
+
+#ifdef __CHERI_PURE_CAPABILITY__
+.section	trampoline_template,"a"
+.p2align	4
+data_cap:
+	.chericap	0
+push_cap:
+	.chericap	0
+pop_cap:
+	.chericap	0
+
+	// Push c30
+	// stp	c0, c1, [csp, #-32]!
+	// stp	c2, c3, [csp, #-32]!
+	// stp	c4, c5, [csp, #-32]!
+	// stp	c6, c7, [csp, #-32]!
+
+	// mov	c0, c30
+	// ldr	c9, push_cap
+	// blr	c9
+
+	// ldp	c6, c7, [csp], #32
+	// ldp	c4, c5, [csp], #32
+	// ldp	c2, c3, [csp], #32
+	// ldp	c0, c1, [csp], #32
+
+	// Jump to target function
+	ldr	c9, data_cap
+	br	c9
+	// blr	c9
+
+	// Pop c30
+	// stp	c0, c1, [csp, #-32]!
+	// stp	c2, c3, [csp, #-32]!
+	// stp	c4, c5, [csp, #-32]!
+	// stp	c6, c7, [csp, #-32]!
+	// sub	csp, csp, #16
+
+	// scbnds	c0, csp, #16
+	// ldr	c9, pop_cap
+	// blr	c9
+
+	// ldr	c30, [csp], #16
+	// ldp	c6, c7, [csp], #32
+	// ldp	c4, c5, [csp], #32
+	// ldp	c2, c3, [csp], #32
+	// ldp	c0, c1, [csp], #32
+
+	// ret
+#endif
