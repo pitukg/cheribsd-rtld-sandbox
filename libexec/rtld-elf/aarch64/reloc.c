@@ -247,7 +247,6 @@ static int trampoline_page_create(struct trampoline_page **out) {
 
 int trampoline_pages_append(uintptr_t *out, uintptr_t data) {
 
-	return 0;
 	static struct trampoline_pages pgs = SLIST_HEAD_INITIALIZER(pgs);
 
 	extern const struct trampoline __start_trampoline_template;
