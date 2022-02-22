@@ -85,13 +85,14 @@ uintptr_t reloc_jmpslot(uintptr_t *where, uintptr_t target,
  */
 static inline dlfunc_t __capability
 make_code_cap(const Elf_Sym *def, const struct Struct_Obj_Entry *defobj,
-    bool tight_bounds, size_t addend)
+    bool tight_bounds, bool restricted, size_t addend)
 {
 	const void * __capability ret;
 
 	ret = get_codesegment_cap(defobj) + def->st_value;
 	/* Remove store and seal permissions */
-	ret = cheri_clearperm(ret, FUNC_PTR_REMOVE_PERMS);
+    const uint32_t perms_to_clear = FUNC_PTR_REMOVE_PERMS | (restricted ? CHERI_PERM_EXECUTIVE : 0);
+    ret = cheri_clearperm(ret, perms_to_clear);
 	if (tight_bounds) {
 		ret = cheri_setbounds(ret, def->st_size);
 	}
@@ -113,7 +114,7 @@ make_function_cap_with_addend(const Elf_Sym *def,
     const struct Struct_Obj_Entry *defobj, size_t addend)
 {
 	/* TODO: ABIs with tight bounds */
-	return make_code_cap(def, defobj, /*tight_bounds=*/false, addend);
+	return make_code_cap(def, defobj, /*tight_bounds=*/false, /*restricted=*/false, addend);
 }
 
 static inline dlfunc_t __capability
@@ -142,6 +143,14 @@ make_data_cap(const Elf_Sym *def, const struct Struct_Obj_Entry *defobj)
 
 #define make_function_pointer(def, defobj) \
 	make_function_cap(def, defobj)
+
+/* Clear executive permission bit so function can only be called in
+ * restricted mode with BRR */
+static inline dlfunc_t
+make_function_ptr_restricted(const Elf_Sym *def, const struct Struct_Obj_Entry *defobj)
+{
+    return make_code_cap(def, defobj, /*tight_bounds=*/false, /*restricted=*/true, /*addend=*/0);
+}
 
 /* ignore _init/_fini */
 #define call_initfini_pointer(obj, target) rtld_fatal("%s: _init or _fini used!", obj->path)

@@ -396,6 +396,7 @@ typedef struct Struct_Obj_Entry {
      * this flag will result in an error.
      */
     bool per_function_captable : 1;
+    bool sandboxed : 1;     /* Object is set up in a sandbox */
 #endif /* __CHERI_PURE_CAPABILITY__ */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */

@@ -1169,7 +1169,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
      * that the trampoline needs.
      */
 #ifdef __CHERI_PURE_CAPABILITY__
-    if (trampoline_pages_append(&target, target))
+    if (obj->sandboxed && trampoline_pages_append(&target, target))
 	rtld_die();
 #endif
     target = reloc_jmpslot(where, target, defobj, obj, rel);
@@ -4054,6 +4054,10 @@ fdlopen(int fd, int mode)
 void *
 dlopen_sandbox(const char *name, int mode)
 {
+#ifndef __CHERI_PURE_CAPABILITY__
+    return (NULL);
+    (void)name; (void)mode;
+#else
     Obj_Entry *obj;
 
     obj = dlopen(name, mode);
@@ -4063,6 +4067,8 @@ dlopen_sandbox(const char *name, int mode)
             dlclose(obj);
             return (NULL);
         }
+
+        obj->sandboxed = true;
 
         for (unsigned int symoffset = 0U; symoffset < obj->dynsymcount; ++symoffset) {
             const Elf_Sym *symbol = obj->symtab + symoffset;
@@ -4082,6 +4088,7 @@ dlopen_sandbox(const char *name, int mode)
     }
 
     return obj;
+#endif
 }
 
 static void *
@@ -4389,8 +4396,20 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	 * symbol.
 	 */
 	if (ELF_ST_TYPE(def->st_info) == STT_FUNC) {
+#ifdef __CHERI_PURE_CAPABILITY__
+        if (defobj->sandboxed) {
+            sym = __DECONST(void*, make_function_ptr_restricted(def, defobj));
+            if (trampoline_pages_append((uintptr_t*)&sym, (uintptr_t)sym)) {
+                _rtld_error("Couldn't create trampoline in dlsym()");
+                rtld_die();
+            }
+        }
+        else
+            sym = __DECONST(void*, make_function_pointer(def, defobj));
+#else
 	    sym = __DECONST(void*, make_function_pointer(def, defobj));
-	    dbg("dlsym(%s) is function: " PTR_FMT, name, sym);
+#endif
+        dbg("dlsym(%s) is function: " PTR_FMT, name, sym);
 	} else if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC) {
 	    sym = rtld_resolve_ifunc(defobj, def);
 	    dbg("dlsym(%s) is ifunc. Resolved to: " PTR_FMT, name, sym);

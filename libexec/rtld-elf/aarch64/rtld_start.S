@@ -350,9 +350,10 @@ pop_cap:
 	// ldp	c0, c1, [csp], #32
 
 	// Jump to target function
+	mov c10, csp
+	msr RCSP_EL0, c10
 	ldr	c9, data_cap
-	br	c9
-	// blr	c9
+	brr	c9
 
 	// Pop c30
 	// stp	c0, c1, [csp, #-32]!
