@@ -214,7 +214,15 @@ extern void *__tls_get_addr(tls_index *ti);
 #define	TLS_DTV_OFFSET	0
 
 #ifdef __CHERI_PURE_CAPABILITY__
-int trampoline_pages_append(uintptr_t *out, uintptr_t data);
+
+typedef enum trampoline_type {
+    // Trampoline intercepting calls into the sandbox
+    CALL_INTO_SANDBOX = 0,
+    // Trampoline intercepting calls to trusted symbols from the sandbox
+    CALL_FROM_SANDBOX = 1
+} trampoline_type;
+
+int trampoline_pages_append(uintptr_t *out, uintptr_t data, trampoline_type type);
 
 static inline void
 fix_obj_mapping_cap_permissions(Obj_Entry *obj, const char *path __unused)

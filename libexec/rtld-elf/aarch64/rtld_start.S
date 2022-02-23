@@ -325,13 +325,14 @@ ENTRY(_rtld_tlsdesc_dynamic)
 END(_rtld_tlsdesc_dynamic)
 
 #ifdef __CHERI_PURE_CAPABILITY__
-.section	trampoline_template,"a"
+// This is the trampoline to intercept calls into the sandbox
+.section	call_into_sandbox_trampoline_template,"a"
 .p2align	4
-data_cap:
+data_cap_into:
 	.chericap	0
-push_cap:
+push_cap_into:
 	.chericap	0
-pop_cap:
+pop_cap_into:
 	.chericap	0
 
 	// Push c30
@@ -352,8 +353,11 @@ pop_cap:
 	// Jump to target function
 	mov c10, csp
 	msr RCSP_EL0, c10
-	ldr	c9, data_cap
+	ldr	c9, data_cap_into
 	brr	c9
+
+	// XXXGP: There is a tradeoff here.. if we don't care about the possibility
+	//        of passing more than 8 arguments, then we don't need a return intercept
 
 	// Pop c30
 	// stp	c0, c1, [csp, #-32]!
@@ -373,4 +377,19 @@ pop_cap:
 	// ldp	c0, c1, [csp], #32
 
 	// ret
+
+// This is the trampoline to intercept calls from within the sandbox
+// to trusted symbols (e.g., from libc) that are allowed by the sandboxing policy
+.section	call_from_sandbox_trampoline_template,"a"
+.p2align	4
+data_cap_from:
+	.chericap	0
+
+    // Jump to target function
+    ldr	c9, data_cap_from
+    brr	c9
+
+    // Will need the return intercept part here to return back into
+    // Restricted mode with RETR
+
 #endif

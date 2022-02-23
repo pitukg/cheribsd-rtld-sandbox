@@ -245,12 +245,21 @@ static int trampoline_page_create(struct trampoline_page **out) {
 	return 0;
 }
 
-int trampoline_pages_append(uintptr_t *out, uintptr_t data) {
+int trampoline_pages_append(uintptr_t *out, uintptr_t data, trampoline_type type) {
 
 	static struct trampoline_pages pgs = SLIST_HEAD_INITIALIZER(pgs);
 
-	extern const struct trampoline __start_trampoline_template;
-	const struct trampoline *template = &__start_trampoline_template;
+	extern const struct trampoline __start_call_into_sandbox_trampoline_template;
+    extern const struct trampoline __start_call_from_sandbox_trampoline_template;
+    const struct trampoline *template;
+    switch (type) {
+        case CALL_INTO_SANDBOX:
+            template = &__start_call_into_sandbox_trampoline_template;
+            break;
+        case CALL_FROM_SANDBOX:
+            template = &__start_call_from_sandbox_trampoline_template;
+            break;
+    }
 
 	int n_retry = 0;
 	struct trampoline_page *pg = SLIST_FIRST(&pgs);
@@ -527,7 +536,7 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 			}
 			target = (uintptr_t)make_function_pointer(def, defobj);
 #ifdef __CHERI_PURE_CAPABILITY__
-			if (trampoline_pages_append(&target, target))
+			if (obj->sandboxed && trampoline_pages_append(&target, target, CALL_FROM_SANDBOX))
 				return (-1);
 #endif
 			reloc_jmpslot(where, target, defobj, obj,
