@@ -26,6 +26,7 @@
  */
 
 #include <atf-c.h>
+#include <dlfcn.h>
 
 #include "./utils.h"
 
@@ -52,6 +53,23 @@ ATF_TC_BODY(libprints_fails, tc)
         "Invalid dependencies for sandboxing");
 }
 
+ATF_TC(libdo_raw_syscall_fails);
+ATF_TC_HEAD(libdo_raw_syscall_fails, tc)
+{
+    atf_tc_set_md_var(tc, "descr",
+        "Check that doing a raw syscall is not permitted in sandbox");
+}
+ATF_TC_BODY(libdo_raw_syscall_fails, tc)
+{
+    void *handle = test_dlopen_sandbox_success("libdo_raw_syscall.so.0");
+    const char *(*hello_world)(void) =
+            (const char *(*)(void)) dlsym(handle, "hello_world");
+    ATF_CHECK(NULL != hello_world);
+
+    const char *msg = hello_world();
+    ATF_CHECK_STREQ_MSG("FAIL", msg, "Syscall was permitted in sandbox");
+}
+
 
 /* Register test cases with ATF. */
 ATF_TP_ADD_TCS(tp)
@@ -59,6 +77,7 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, libhelloworld_passes);
     ATF_TP_ADD_TC(tp, libprints_fails);
+    ATF_TP_ADD_TC(tp, libdo_raw_syscall_fails);
 
 	return atf_no_error();
 }

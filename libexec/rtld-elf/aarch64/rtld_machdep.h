@@ -91,7 +91,8 @@ make_code_cap(const Elf_Sym *def, const struct Struct_Obj_Entry *defobj,
 
 	ret = get_codesegment_cap(defobj) + def->st_value;
 	/* Remove store and seal permissions */
-    const uint32_t perms_to_clear = FUNC_PTR_REMOVE_PERMS | (restricted ? CHERI_PERM_EXECUTIVE : 0);
+    const uint32_t perms_to_clear = FUNC_PTR_REMOVE_PERMS
+            | (restricted ? CHERI_PERM_EXECUTIVE | CHERI_PERM_SYSCALL : 0);
     ret = cheri_clearperm(ret, perms_to_clear);
 	if (tight_bounds) {
 		ret = cheri_setbounds(ret, def->st_size);
