@@ -108,6 +108,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libxo \
 	liby \
 	libz \
+	libz_nofio \
 	libzstd \
 	ncurses
 
