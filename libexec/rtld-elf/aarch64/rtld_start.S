@@ -384,6 +384,10 @@ pop_cap_into:
 .p2align	4
 data_cap_from:
 	.chericap	0
+push_cap_from:
+    .chericap	0
+pop_cap_from:
+    .chericap	0
 
     // Jump to target function
     ldr	c9, data_cap_from
