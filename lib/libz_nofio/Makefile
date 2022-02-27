@@ -19,6 +19,7 @@ ZLIBSRC=	${SRCTOP}/sys/contrib/zlib
 
 #CFLAGS+=	-DHAS_snprintf -DHAS_vsnprintf
 CFLAGS+=	-D_KERNEL -DZ_STDLIB_MALLOC_FREE -DHAVE_MEMCPY -I${.CURDIR}
+LDFLAGS+=	-Wl,-Bsymbolic
 
 WARNS?=		3
 
