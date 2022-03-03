@@ -336,47 +336,48 @@ pop_cap_into:
 	.chericap	0
 
 	// Push c30
-	// stp	c0, c1, [csp, #-32]!
-	// stp	c2, c3, [csp, #-32]!
-	// stp	c4, c5, [csp, #-32]!
-	// stp	c6, c7, [csp, #-32]!
+	stp	c0, c1, [csp, #-32]!
+	stp	c2, c3, [csp, #-32]!
+	stp	c4, c5, [csp, #-32]!
+	stp	c6, c7, [csp, #-32]!
+	str	c8, [csp, #-16]!
 
-	// mov	c0, c30
-	// ldr	c9, push_cap
-	// blr	c9
+	mov	c0, c30
+	ldr	c9, push_cap_into
+	blr	c9
 
-	// ldp	c6, c7, [csp], #32
-	// ldp	c4, c5, [csp], #32
-	// ldp	c2, c3, [csp], #32
-	// ldp	c0, c1, [csp], #32
+	ldr	c8, [csp], #16
+	ldp	c6, c7, [csp], #32
+	ldp	c4, c5, [csp], #32
+	ldp	c2, c3, [csp], #32
+	ldp	c0, c1, [csp], #32
 
-	// Jump to target function
+	// Jump to target function in sandbox
 	mov c10, csp
 	msr RCSP_EL0, c10
 	ldr	c9, data_cap_into
-	brr	c9
-
-	// XXXGP: There is a tradeoff here.. if we don't care about the possibility
-	//        of passing more than 8 arguments, then we don't need a return intercept
+	blrr	c9
 
 	// Pop c30
-	// stp	c0, c1, [csp, #-32]!
-	// stp	c2, c3, [csp, #-32]!
-	// stp	c4, c5, [csp, #-32]!
-	// stp	c6, c7, [csp, #-32]!
-	// sub	csp, csp, #16
+	stp	c0, c1, [csp, #-32]!
+	stp	c2, c3, [csp, #-32]!
+	stp	c4, c5, [csp, #-32]!
+	stp	c6, c7, [csp, #-32]!
+	stp	czr, c8, [csp, #-32]!
 
-	// scbnds	c0, csp, #16
-	// ldr	c9, pop_cap
-	// blr	c9
+	scbnds	c0, csp, #16
+	ldr	c9, pop_cap_into
+    blr	c9
 
-	// ldr	c30, [csp], #16
-	// ldp	c6, c7, [csp], #32
-	// ldp	c4, c5, [csp], #32
-	// ldp	c2, c3, [csp], #32
-	// ldp	c0, c1, [csp], #32
+    ldp	c30, c8, [csp], #32
+    ldp	c6, c7, [csp], #32
+    ldp	c4, c5, [csp], #32
+    ldp	c2, c3, [csp], #32
+    ldp	c0, c1, [csp], #32
 
-	// ret
+    // Return to caller
+    ret	c30
+
 
 // This is the trampoline to intercept calls from within the sandbox
 // to trusted symbols (e.g., from libc) that are allowed by the sandboxing policy
@@ -389,11 +390,44 @@ push_cap_from:
 pop_cap_from:
     .chericap	0
 
+    // Push c30
+    stp	c0, c1, [csp, #-32]!
+    stp	c2, c3, [csp, #-32]!
+    stp	c4, c5, [csp, #-32]!
+    stp	c6, c7, [csp, #-32]!
+    str	c8, [csp, #-16]!
+
+    mov	c0, c30
+    ldr	c9, push_cap_from
+    blr	c9
+
+    ldr	c8, [csp], #16
+    ldp	c6, c7, [csp], #32
+    ldp	c4, c5, [csp], #32
+    ldp	c2, c3, [csp], #32
+    ldp	c0, c1, [csp], #32
+
     // Jump to target function
     ldr	c9, data_cap_from
-    brr	c9
+    blr	c9
 
-    // Will need the return intercept part here to return back into
-    // Restricted mode with RETR
+    // Pop c30
+    stp	c0, c1, [csp, #-32]!
+    stp	c2, c3, [csp, #-32]!
+    stp	c4, c5, [csp, #-32]!
+    stp	c6, c7, [csp, #-32]!
+    stp	czr, c8, [csp, #-32]!
 
+    scbnds	c0, csp, #16
+    ldr	c9, pop_cap_into
+    blr	c9
+
+    ldp	c30, c8, [csp], #32
+    ldp	c6, c7, [csp], #32
+    ldp	c4, c5, [csp], #32
+    ldp	c2, c3, [csp], #32
+    ldp	c0, c1, [csp], #32
+
+    // Return back into the sandbox
+	retr	c30
 #endif

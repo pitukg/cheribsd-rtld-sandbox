@@ -74,6 +74,9 @@ void _rtld_thread_init(struct RtldLockInfo *) __exported;
 void _rtld_atfork_pre(int *) __exported;
 void _rtld_atfork_post(int *) __exported;
 
+struct tramp_stks_funcs;
+void _rtld_tramp_stks_funcs_init(struct tramp_stks_funcs *) __exported;
+
 #endif /* IN_RTLD || PTHREAD_KERNEL */
 
 #ifdef IN_RTLD

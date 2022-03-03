@@ -223,7 +223,9 @@ typedef enum trampoline_type {
     CALL_FROM_SANDBOX = 1
 } trampoline_type;
 
-int trampoline_pages_append(uintptr_t *out, uintptr_t data, trampoline_type type);
+int tramp_pgs_append(uintptr_t *out, uintptr_t data, trampoline_type type);
+
+struct tramp_stks *tramp_stks_get(void);
 
 static inline void
 fix_obj_mapping_cap_permissions(Obj_Entry *obj, const char *path __unused)

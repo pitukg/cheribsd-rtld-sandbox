@@ -67,6 +67,7 @@
 #include <ucontext.h>
 #include <sys/thr.h>
 #include <pthread.h>
+#include <rtld.h>
 #ifdef __CHERI_PURE_CAPABILITY__
 #include <cheri/cheric.h>
 #endif
@@ -597,6 +598,10 @@ struct pthread {
 	/* rtld thread-local dlerror message and seen control */
 	char			dlerror_msg[512];
 	int			dlerror_seen;
+
+#ifdef __CHERI_PURE_CAPABILITY__
+	struct tramp_stks	trusted_stks;
+#endif
 };
 
 #define THR_SHOULD_GC(thrd) 						\

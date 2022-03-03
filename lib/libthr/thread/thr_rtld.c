@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "libc_private.h"
+#include "rtld.h"
 #include "rtld_lock.h"
 #include "thr_private.h"
 
@@ -207,10 +208,21 @@ _thr_dlerror_seen(void)
 	return (&curthread->dlerror_seen);
 }
 
+#ifdef __CHERI_PURE_CAPABILITY__
+static struct tramp_stks *
+_thr_rtld_get_trusted_stks(void)
+{
+	return &_get_curthread()->trusted_stks;
+}
+#endif
+
 void
 _thr_rtld_init(void)
 {
 	struct RtldLockInfo	li;
+#ifdef __CHERI_PURE_CAPABILITY__
+	struct tramp_stks_funcs fs;
+#endif
 	struct pthread		*curthread;
 	ucontext_t *uc;
 	long dummy = -1;
@@ -247,6 +259,9 @@ _thr_rtld_init(void)
 	li.dlerror_loc = _thr_dlerror_loc;
 	li.dlerror_loc_sz = sizeof(curthread->dlerror_msg);
 	li.dlerror_seen = _thr_dlerror_seen;
+#ifdef __CHERI_PURE_CAPABILITY__
+	fs.getter = _thr_rtld_get_trusted_stks;
+#endif
 
 	/*
 	 * Preresolve the symbols needed for the fork interposer.  We
@@ -269,6 +284,9 @@ _thr_rtld_init(void)
 	/* mask signals, also force to resolve __sys_sigprocmask PLT */
 	_thr_signal_block(curthread);
 	_rtld_thread_init(&li);
+#ifdef __CHERI_PURE_CAPABILITY__
+	_rtld_tramp_stks_funcs_init(&fs);
+#endif
 	_thr_signal_unblock(curthread);
 	_thr_signal_block_check_fast();
 	_thr_signal_block_setup(curthread);

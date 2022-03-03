@@ -1169,7 +1169,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
      * that the trampoline needs.
      */
 #ifdef __CHERI_PURE_CAPABILITY__
-    if (obj->sandboxed && trampoline_pages_append(&target, target, CALL_FROM_SANDBOX))
+    if (obj->sandboxed && tramp_pgs_append(&target, target, CALL_FROM_SANDBOX))
 	rtld_die();
 #endif
     target = reloc_jmpslot(where, target, defobj, obj, rel);
@@ -4399,7 +4399,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 #ifdef __CHERI_PURE_CAPABILITY__
         if (defobj->sandboxed) {
             sym = __DECONST(void*, make_function_ptr_restricted(def, defobj));
-            if (trampoline_pages_append((uintptr_t*)&sym, (uintptr_t)sym, CALL_INTO_SANDBOX)) {
+            if (tramp_pgs_append((uintptr_t*)&sym, (uintptr_t)sym, CALL_INTO_SANDBOX)) {
                 _rtld_error("Couldn't create trampoline in dlsym()");
                 rtld_die();
             }

@@ -167,45 +167,56 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Auxinfo *aux)
 	}
 }
 
-static void *partition(struct trampoline **inout, size_t len) {
-	void *hi = *inout;
-	void *lo = cheri_setbounds(hi, len);
-	*inout = lo;
-	vaddr_t top = cheri_gettop(lo);
-	size_t rem = cheri_gettop(hi) - top;
-	vaddr_t mask = CHERI_REPRESENTABLE_ALIGNMENT(rem);
-	hi = cheri_setaddress(hi, __align_up(top, mask));
-	return cheri_setbounds(hi, __align_down(rem, mask));
+static struct tramp_stks *
+def_tramp_stks_get(void)
+{
+	static struct tramp_stks def_stks = SLIST_HEAD_INITIALIZER(&def_stks);
+	return &def_stks;
 }
 
-static int trampoline_stack_create(struct trampoline_stack **out) {
-	struct trampoline_stack *s = mmap(NULL,
-					  getpagesize(),
-					  PROT_READ | PROT_WRITE,
-					  MAP_ANON | MAP_PRIVATE,
-					  -1, 0);
+static struct tramp_stks_funcs tramp_stks_fs = {
+	.getter = def_tramp_stks_get
+};
+
+void
+_rtld_tramp_stks_funcs_init(struct tramp_stks_funcs *fs)
+{
+	*fs->getter() = *tramp_stks_fs.getter();
+	tramp_stks_fs = *fs;
+}
+
+static int
+tramp_stk_create(struct tramp_stk **out)
+{
+	struct tramp_stk *s = mmap(NULL,
+				   getpagesize(),
+				   PROT_READ | PROT_WRITE,
+				   MAP_ANON | MAP_PRIVATE,
+				   -1, 0);
 	if (s == MAP_FAILED)
-		return -1;
+		rtld_die();
 	s->cursor = s->buf;
-	*out = cheri_setboundsexact(s, offsetof(typeof(*s), buf));
+	*out = s;
 	return 0;
 }
 
-static struct trampoline_stacks stks = SLIST_HEAD_INITIALIZER(stks);
-// static _Thread_local struct trampoline_stacks stks = SLIST_HEAD_INITIALIZER(stks);
+static int
+tramp_stk_push(void *data)
+{
+	if (0x40ac7a5d == (uintptr_t)data)
+		return 0;
 
-static int trampoline_stack_push(void *data) {
-
+	struct tramp_stks *stks = tramp_stks_fs.getter();
 	int n_retry = 0;
-	struct trampoline_stack *s = SLIST_FIRST(&stks);
+	struct tramp_stk *s = SLIST_FIRST(stks);
 	goto start;
 
 retry:
 	if (n_retry++)
-		return -1;
-	if (trampoline_stack_create(&s))
-		return -1;
-	SLIST_INSERT_HEAD(&stks, s, entries);
+		rtld_die();
+	if (tramp_stk_create(&s))
+		rtld_die();
+	SLIST_INSERT_HEAD(stks, s, entries);
 
 start:
 	if (!s)
@@ -220,38 +231,57 @@ start:
 	return 0;
 }
 
-static int trampoline_stack_pop(void **out) {
-	struct trampoline_stack *s = SLIST_FIRST(&stks);
-	*out = *(--s->cursor);
+static int
+tramp_stk_pop(void **out)
+{
+	struct tramp_stks *stks = tramp_stks_fs.getter();
+	struct tramp_stk *s = SLIST_FIRST(stks);
 	if (s->cursor == s->buf) {
+		SLIST_REMOVE_HEAD(stks, entries);
 		if (munmap(s, getpagesize())) {
-			return -1;
+			rtld_die();
 		}
-		SLIST_REMOVE_HEAD(&stks, entries);
+		s = SLIST_FIRST(stks);
 	}
+	*out = *(--s->cursor);
 	return 0;
 }
 
-static int trampoline_page_create(struct trampoline_page **out) {
-	struct trampoline_page *p = mmap(NULL,
-					 getpagesize(),
-					 PROT_READ | PROT_WRITE | PROT_EXEC,
-					 MAP_ANON | MAP_PRIVATE,
-					 -1, 0);
+static void *
+partition(struct tramp **inout, size_t len)
+{
+	void *hi = *inout;
+	void *lo = cheri_setbounds(hi, len);
+	*inout = lo;
+	vaddr_t top = cheri_gettop(lo);
+	size_t rem = cheri_gettop(hi) - top;
+	vaddr_t mask = CHERI_REPRESENTABLE_ALIGNMENT(rem);
+	hi = cheri_setaddress(hi, __align_up(top, mask));
+	return cheri_setbounds(hi, __align_down(rem, mask));
+}
+
+static int
+tramp_pg_create(struct tramp_pg **out)
+{
+	struct tramp_pg *p = mmap(NULL,
+				  getpagesize(),
+				  PROT_READ | PROT_WRITE | PROT_EXEC,
+				  MAP_ANON | MAP_PRIVATE,
+				  -1, 0);
 	if (p == MAP_FAILED)
-		return -1;
+		rtld_die();
 	p->cursor = p->trampolines;
 	*out = cheri_setboundsexact(p, offsetof(typeof(*p), trampolines));
 	return 0;
 }
 
-int trampoline_pages_append(uintptr_t *out, uintptr_t data, trampoline_type type) {
+int
+tramp_pgs_append(uintptr_t *out, uintptr_t data, trampoline_type type) {
+    static struct tramp_pgs pgs = SLIST_HEAD_INITIALIZER(pgs);
 
-	static struct trampoline_pages pgs = SLIST_HEAD_INITIALIZER(pgs);
-
-	extern const struct trampoline __start_call_into_sandbox_trampoline_template;
-    extern const struct trampoline __start_call_from_sandbox_trampoline_template;
-    const struct trampoline *template;
+    extern const struct tramp __start_call_into_sandbox_trampoline_template;
+    extern const struct tramp __start_call_from_sandbox_trampoline_template;
+    const struct tramp *template;
     switch (type) {
         case CALL_INTO_SANDBOX:
             template = &__start_call_into_sandbox_trampoline_template;
@@ -262,14 +292,14 @@ int trampoline_pages_append(uintptr_t *out, uintptr_t data, trampoline_type type
     }
 
 	int n_retry = 0;
-	struct trampoline_page *pg = SLIST_FIRST(&pgs);
+	struct tramp_pg *pg = SLIST_FIRST(&pgs);
 	goto start;
 
 retry:
 	if (n_retry++)
-		return -1;
-	if (trampoline_page_create(&pg))
-		return -1;
+		rtld_die();
+	if (tramp_pg_create(&pg))
+		rtld_die();
 	SLIST_INSERT_HEAD(&pgs, pg, entries);
 
 start:
@@ -278,17 +308,17 @@ start:
 
 	size_t len = cheri_getlen(template);
 
-	struct trampoline *t = __align_up(pg->cursor, _Alignof(typeof(*t)));
+	struct tramp *t = __align_up(pg->cursor, _Alignof(typeof(*t)));
 	pg->cursor = partition(&t, len);
 	if (!cheri_gettag(t))
 		goto retry;
 
 	memcpy(t, template, len);
 	t->data = data;
-	t->push = trampoline_stack_push;
-	t->pop = trampoline_stack_pop;
+	t->push = tramp_stk_push;
+	t->pop = tramp_stk_pop;
 	t = cheri_clearperm(t, FUNC_PTR_REMOVE_PERMS);
-	*out = cheri_sealentry((uintptr_t)t->code | 1);
+	*out = cheri_sealentry((uintptr_t)t->code);
 
 	return 0;
 }
@@ -536,7 +566,7 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 			}
 			target = (uintptr_t)make_function_pointer(def, defobj);
 #ifdef __CHERI_PURE_CAPABILITY__
-			if (obj->sandboxed && trampoline_pages_append(&target, target, CALL_FROM_SANDBOX))
+			if (obj->sandboxed && tramp_pgs_append(&target, target, CALL_FROM_SANDBOX))
 				return (-1);
 #endif
 			reloc_jmpslot(where, target, defobj, obj,

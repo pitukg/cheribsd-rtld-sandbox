@@ -169,27 +169,32 @@ typedef struct Struct_Sym_Match_Result {
 } Sym_Match_Result;
 
 #ifdef __CHERI_PURE_CAPABILITY__
-struct trampoline {
+struct tramp {
 	uintptr_t data;
     void *push, *pop;
+    char padding;
 	const char code[] __attribute__((cheri_no_subobject_bounds));
 };
 
-struct trampoline_page {
-	struct trampoline *cursor;		/* Points to start of unused space */
-	SLIST_ENTRY(trampoline_page) entries;	/* Points to start of next page */
-	struct trampoline trampolines[];	/* Points to start of trampolines */
+struct tramp_pg {
+	struct tramp *cursor;		/* Points to start of unused space */
+	SLIST_ENTRY(tramp_pg) entries;	/* Points to start of next page */
+	struct tramp trampolines[];	/* Points to start of trampolines */
 };
 
-SLIST_HEAD(trampoline_pages, trampoline_page);
+SLIST_HEAD(tramp_pgs, tramp_pg);
 
-struct trampoline_stack {
+struct tramp_stks_funcs {
+    struct tramp_stks *(*getter)(void);
+};
+
+struct tramp_stk {
     void **cursor;
-    SLIST_ENTRY(trampoline_stack) entries;
+    SLIST_ENTRY(tramp_stk) entries;
     void *buf[];
 };
 
-SLIST_HEAD(trampoline_stacks, trampoline_stack);
+SLIST_HEAD(tramp_stks, tramp_stk);
 #endif
 
 #define VER_INFO_HIDDEN	0x01
