@@ -401,7 +401,6 @@ typedef struct Struct_Obj_Entry {
      * this flag will result in an error.
      */
     bool per_function_captable : 1;
-    bool sandboxed : 1;     /* Object is set up in a sandbox */
 #endif /* __CHERI_PURE_CAPABILITY__ */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
@@ -411,6 +410,9 @@ typedef struct Struct_Obj_Entry {
     ino_t ino;			/* Object's inode number */
     void *priv;			/* Platform-dependent */
 } Obj_Entry;
+
+#define obj_is_sandboxed(obj) \
+    ((cheri_getperm((obj)->mapbase) & CHERI_PERM_EXECUTIVE) == 0)
 
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
@@ -437,6 +439,7 @@ TAILQ_HEAD(obj_entry_q, Struct_Obj_Entry);
 				   initialization during the image start. */
 #define	RTLD_LO_IGNSTLS 0x40	/* Do not allocate static TLS */
 #define	RTLD_LO_DEEPBIND 0x80	/* Force symbolic for this object */
+#define RTLD_LO_SANDBOX 0x100   /* Set up object in a sandbox */
 
 /*
  * Symbol cache entry used during relocation to avoid multiple lookups
@@ -497,7 +500,7 @@ symname(const Obj_Entry* obj, size_t r_symndx) {
 	return strtab_value(obj, obj->symtab[r_symndx].st_name);
 }
 const char *rtld_strerror(int);
-Obj_Entry *map_object(int, const char *, const struct stat *, const char *);
+Obj_Entry *map_object(int, const char *, const struct stat *, const char *, bool);
 void *xcalloc(size_t, size_t);
 void *xmalloc(size_t);
 char *xstrdup(const char *);

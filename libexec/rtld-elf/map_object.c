@@ -70,12 +70,15 @@ phdr_in_zero_page(const Elf_Ehdr *hdr)
  * Map a shared object into memory.  The "fd" argument is a file descriptor,
  * which must be open on the object and positioned at its beginning.
  * The "path" argument is a pathname that is used only for error messages.
+ * If the "restricted" argument is set, the object will be set up in
+ * Restricted mode, used for sandboxed objects.
  *
  * The return value is a pointer to a newly-allocated Obj_Entry structure
  * for the shared object.  Returns NULL on failure.
  */
 Obj_Entry *
-map_object(int fd, const char *path, const struct stat *sb, const char* main_path)
+map_object(int fd, const char *path, const struct stat *sb, const char* main_path,
+    bool restricted)
 {
     Obj_Entry *obj;
     Elf_Ehdr *hdr;
@@ -279,6 +282,15 @@ map_object(int fd, const char *path, const struct stat *sb, const char* main_pat
 	  path, base_addr, mapbase);
 #endif
 	goto error1;
+    }
+    if (restricted) {
+#ifdef __CHERI_PURE_CAPABILITY__
+        mapbase = cheri_clearperm(mapbase, CHERI_PERM_EXECUTIVE | CHERI_PERM_SYSCALL);
+#else
+        _rtld_error("Setting up object in restricted mode is not currently"
+            " supported in hybrid mode.");
+        goto error1;
+#endif
     }
 
     for (i = 0; i <= nsegs; i++) {

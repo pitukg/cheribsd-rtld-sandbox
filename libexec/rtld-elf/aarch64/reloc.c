@@ -566,8 +566,10 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 			}
 			target = (uintptr_t)make_function_pointer(def, defobj);
 #ifdef __CHERI_PURE_CAPABILITY__
-			if (obj->sandboxed && tramp_pgs_append(&target, target, CALL_FROM_SANDBOX))
+			if (obj_is_sandboxed(obj) && tramp_pgs_append(&target, target, CALL_FROM_SANDBOX)) {
+				_rtld_error("Couldn't create trampoline");
 				return (-1);
+			}
 #endif
 			reloc_jmpslot(where, target, defobj, obj,
 			    (const Elf_Rel *)rela);

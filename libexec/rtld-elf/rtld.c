@@ -173,7 +173,7 @@ static int relocate_objects(Obj_Entry *, bool, Obj_Entry *, int,
 static int resolve_object_ifunc(Obj_Entry *, bool, int, RtldLockState *);
 static int rtld_dirname(const char *, char *);
 static int rtld_dirname_abs(const char *, char *);
-static void *rtld_dlopen(const char *name, int fd, int mode);
+static void *rtld_dlopen(const char *name, int fd, int mode, bool sandbox);
 static void rtld_exit(void);
 static void rtld_nop_exit(void);
 static char *search_library_path(const char *, const char *, const char *,
@@ -835,7 +835,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      */
     if (fd != -1) {	/* Load the main program. */
 	dbg("loading main program");
-	obj_main = map_object(fd, argv0, NULL, _PATH_RTLD);
+	obj_main = map_object(fd, argv0, NULL, _PATH_RTLD, /*restricted=*/false);
 	close(fd);
 	if (obj_main == NULL)
 	    rtld_die();
@@ -1169,7 +1169,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
      * that the trampoline needs.
      */
 #ifdef __CHERI_PURE_CAPABILITY__
-    if (obj->sandboxed && tramp_pgs_append(&target, target, CALL_FROM_SANDBOX))
+    if (obj_is_sandboxed(obj) && tramp_pgs_append(&target, target, CALL_FROM_SANDBOX))
 	rtld_die();
 #endif
     target = reloc_jmpslot(where, target, defobj, obj, rel);
@@ -3215,7 +3215,8 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
     dbg("loading \"%s\"", printable_path(path));
     if (obj_main)
 	main_path = obj_main->path;
-    obj = map_object(fd, printable_path(path), sbp, printable_path(main_path));
+    obj = map_object(fd, printable_path(path), sbp, printable_path(main_path),
+        /*restricted=*/((flags & RTLD_LO_SANDBOX) != 0));
     if (obj == NULL)
         return (NULL);
 
@@ -4041,14 +4042,14 @@ void *
 dlopen(const char *name, int mode)
 {
 
-	return (rtld_dlopen(name, -1, mode));
+	return (rtld_dlopen(name, -1, mode, /*sandbox=*/false));
 }
 
 void *
 fdlopen(int fd, int mode)
 {
 
-	return (rtld_dlopen(NULL, fd, mode));
+	return (rtld_dlopen(NULL, fd, mode, /*sandbox=*/false));
 }
 
 void *
@@ -4060,15 +4061,13 @@ dlopen_sandbox(const char *name, int mode)
 #else
     Obj_Entry *obj;
 
-    obj = dlopen(name, mode);
+    obj = rtld_dlopen(name, -1, mode, /*sandbox=*/true);
     if (obj) {
         if (obj->dl_refcount > 1) {
             _rtld_error("Not allowed to load sandboxed library multiple times");
             dlclose(obj);
             return (NULL);
         }
-
-        obj->sandboxed = true;
 
         for (unsigned int symoffset = 0U; symoffset < obj->dynsymcount; ++symoffset) {
             const Elf_Sym *symbol = obj->symtab + symoffset;
@@ -4092,7 +4091,7 @@ dlopen_sandbox(const char *name, int mode)
 }
 
 static void *
-rtld_dlopen(const char *name, int fd, int mode)
+rtld_dlopen(const char *name, int fd, int mode, bool sandbox)
 {
     RtldLockState lockstate;
     int lo_flags;
@@ -4115,6 +4114,8 @@ rtld_dlopen(const char *name, int fd, int mode)
 	    lo_flags |= RTLD_LO_DEEPBIND;
     if (ld_tracing != NULL)
 	    lo_flags |= RTLD_LO_TRACE | RTLD_LO_IGNSTLS;
+    if (sandbox)
+        lo_flags |= RTLD_LO_SANDBOX;
 
     return (dlopen_object(name, fd, obj_main, lo_flags,
       mode & (RTLD_MODEMASK | RTLD_GLOBAL), NULL));
@@ -4396,18 +4397,13 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	 * symbol.
 	 */
 	if (ELF_ST_TYPE(def->st_info) == STT_FUNC) {
+        sym = __DECONST(void*, make_function_pointer(def, defobj));
 #ifdef __CHERI_PURE_CAPABILITY__
-        if (defobj->sandboxed) {
-            sym = __DECONST(void*, make_function_ptr_restricted(def, defobj));
-            if (tramp_pgs_append((uintptr_t*)&sym, (uintptr_t)sym, CALL_INTO_SANDBOX)) {
-                _rtld_error("Couldn't create trampoline in dlsym()");
-                rtld_die();
-            }
+        /* If object is sandboxed, wrap the resolved symbol with a trampoline */
+        if (obj_is_sandboxed(defobj) && tramp_pgs_append((uintptr_t*)&sym, (uintptr_t)sym, CALL_INTO_SANDBOX)) {
+            _rtld_error("Couldn't create trampoline in dlsym()");
+            rtld_die();
         }
-        else
-            sym = __DECONST(void*, make_function_pointer(def, defobj));
-#else
-	    sym = __DECONST(void*, make_function_pointer(def, defobj));
 #endif
         dbg("dlsym(%s) is function: " PTR_FMT, name, sym);
 	} else if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC) {
