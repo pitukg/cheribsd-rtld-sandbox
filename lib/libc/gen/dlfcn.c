@@ -167,6 +167,15 @@ dlsym(void * __restrict handle __unused, const char * __restrict name __unused)
 	return (NULL);
 }
 
+#pragma weak dlwrap_callback
+void *
+dlwrap_callback(void *callback __unused)
+{
+
+	PRINT_FUNCTION_NOT_AVAILABLE();
+	return (NULL);
+}
+
 #pragma weak dlfunc
 dlfunc_t
 dlfunc(void * __restrict handle __unused, const char * __restrict name __unused)

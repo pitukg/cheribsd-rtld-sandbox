@@ -121,6 +121,7 @@ char	*dlerror(void);
 void	*dlopen(const char *, int);
 void	*dlopen_sandbox(const char *, int);
 void	*dlsym(void * __restrict, const char * __restrict);
+void	*dlwrap_callback(void *);
 
 #if __BSD_VISIBLE
 void	*fdlopen(int, int);

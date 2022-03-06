@@ -266,6 +266,7 @@ void *dlopen(const char *, int) __exported;
 void *fdlopen(int, int) __exported;
 void *dlopen_sandbox(const char *, int) __exported;
 void *dlsym(void *, const char *) __exported;
+void *dlwrap_callback(void *) __exported;
 dlfunc_t dlfunc(void *, const char *) __exported;
 void *dlvsym(void *, const char *, const char *) __exported;
 int dladdr(const void *, Dl_info *) __exported;
@@ -4443,6 +4444,22 @@ dlsym(void *handle, const char *name)
 {
 	return (do_dlsym(handle, name, __builtin_return_address(0), NULL,
 	    SYMLOOK_DLSYM));
+}
+
+void *
+dlwrap_callback(void *callback)
+{
+#ifndef __CHERI_PURE_CAPABILITY__
+	_rtld_error("Sandboxes not supported in hybrid mode");
+	(void)callback;
+	rtld_die();
+#else
+	if (tramp_pgs_append((uintptr_t *)&callback, (uintptr_t)callback, CALL_FROM_SANDBOX)) {
+		_rtld_error("Coudln't create trampoline");
+		rtld_die();
+	}
+	return callback;
+#endif
 }
 
 dlfunc_t

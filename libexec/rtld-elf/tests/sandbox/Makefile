@@ -2,7 +2,12 @@
 
 TESTSDIR=	${TESTSBASE}/libexec/rtld-elf/sandbox
 
-SUBDIR+=	libhelloworld libhelloworld-with-deps libprints libdo-raw-syscall sandbox-target
+SUBDIR+=	libcallback \
+			libdo-raw-syscall \
+			libhelloworld \
+			libhelloworld-with-deps \
+			libprints \
+			sandbox-target
 
 ATF_TESTS_C+=	dependency-policies
 

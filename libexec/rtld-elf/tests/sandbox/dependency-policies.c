@@ -70,14 +70,64 @@ ATF_TC_BODY(libdo_raw_syscall_fails, tc)
     ATF_CHECK_STREQ_MSG("FAIL", msg, "Syscall was permitted in sandbox");
 }
 
+static char *
+get_as(int n)
+{
+	char *buf = malloc((n+1) * sizeof(char));
+	memset(buf, 'a', n * sizeof(char));
+	buf[n] = '\0';
+	return buf;
+}
+static char *(*get_as_fn)(int) = get_as;
+
+ATF_TC(libcallback_without_dlwrap_callback_fails);
+ATF_TC_HEAD(libcallback_without_dlwrap_callback_fails, tc)
+{
+	// TODO: run this test case
+	atf_tc_set_md_var(tc, "descr",
+		"Check that on callback return to sandbox without trampoline we get SIGPROT");
+}
+ATF_TC_BODY(libcallback_without_dlwrap_callback_fails, tc)
+{
+	void *handle = test_dlopen_sandbox_success("libcallback.so.0");
+	char *(*b_then_as)(char *(*)(int)) =
+			(char *(*)(char *(*)(int))) dlsym(handle, "b_then_as");
+	ATF_CHECK(NULL != b_then_as);
+
+	atf_tc_expect_signal(34, "SIGPROT should be received when returning from Executive "
+							 "callback into sandbox without a trampoline.");
+	(void)b_then_as(get_as_fn);
+}
+
+ATF_TC(libcallback_with_dlwrap_callback_passes);
+ATF_TC_HEAD(libcallback_with_dlwrap_callback_passes, tc)
+{
+	// TODO: run this test case
+	atf_tc_set_md_var(tc, "descr",
+					  "Check that on callback return to sandbox with trampoline should pass");
+}
+ATF_TC_BODY(libcallback_with_dlwrap_callback_passes, tc)
+{
+	void *handle = test_dlopen_sandbox_success("libcallback.so.0");
+	char *(*b_then_as)(char *(*)(int)) =
+	(char *(*)(char *(*)(int))) dlsym(handle, "b_then_as");
+	ATF_CHECK(NULL != b_then_as);
+
+	atf_tc_expect_signal(34, "SIGPROT should be received when returning from Executive "
+							 "callback into sandbox without a trampoline.");
+	get_as_fn = (char *(*)(int)) dlwrap_callback((void *)get_as_fn);
+	ATF_CHECK(NULL != b_then_as(get_as_fn));
+}
 
 /* Register test cases with ATF. */
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, libhelloworld_passes);
-    ATF_TP_ADD_TC(tp, libprints_fails);
-    ATF_TP_ADD_TC(tp, libdo_raw_syscall_fails);
+	ATF_TP_ADD_TC(tp, libprints_fails);
+	ATF_TP_ADD_TC(tp, libdo_raw_syscall_fails);
+	ATF_TP_ADD_TC(tp, libcallback_without_dlwrap_callback_fails);
+	ATF_TP_ADD_TC(tp, libcallback_with_dlwrap_callback_passes);
 
 	return atf_no_error();
 }

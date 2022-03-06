@@ -81,8 +81,9 @@ FBSD_1.0 {
 	dlfunc;
 	dllockinit;
 	dlopen;
-        dlopen_sandbox;
+	dlopen_sandbox;
 	dlsym;
+	dlwrap_callback;
 	dlvsym;
 	dlinfo;
 	dl_iterate_phdr;

@@ -9,6 +9,7 @@ FBSD_1.0 {
     dlopen;
     dlopen_sandbox;
     dlsym;
+    dlwrap_callback;
     dlfunc;
     dlvsym;
     dladdr;
