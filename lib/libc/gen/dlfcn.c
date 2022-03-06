@@ -60,6 +60,9 @@ void _rtld_thread_init(void *);
 void _rtld_atfork_pre(int *);
 void _rtld_atfork_post(int *);
 
+struct tramp_stks_funcs;
+void _rtld_tramp_stks_funcs_init(struct tramp_stks_funcs *);
+
 /*
  * For ELF, the dynamic linker directly resolves references to its
  * services to functions inside the dynamic linker itself.  These
@@ -199,6 +202,11 @@ _rtld_thread_init(void *li __unused)
 {
 
 	/* Do nothing when linked statically. */
+}
+
+#pragma weak _rtld_tramp_stks_funcs_init
+void _rtld_tramp_stks_funcs_init(struct tramp_stks_funcs *fs __unused)
+{
 }
 
 #ifndef IN_LIBDL
