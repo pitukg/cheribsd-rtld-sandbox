@@ -101,6 +101,16 @@ END(.rtld_start)
  * x17 = &_rtld_bind_start
  */
 ENTRY(_rtld_bind_start)
+	/* Set Executive SP if coming from sandbox
+	 * c16 = &GOT[2] is an arbitrary pointer that has the Executive bit set
+	 * if the object is not sandboxed. */
+	gcperm x9, c16
+	/* Permission bit #1 is Executive */
+	tbnz x9, #1, _rtld_bind_start_body
+	mrs c10, RCSP_EL0
+	mov csp, c10
+
+_rtld_bind_start_body:
 	mov	PTR(17), PTRN(sp)
 
 	/* Save frame pointer and SP */
@@ -169,6 +179,8 @@ ENTRY(_rtld_bind_start)
 	ldp	PTR(zr), PTR(30), [PTRN(sp)], #(PTR_WIDTH * 2)
 
 	/* Call into the correct function */
+	mov c10, csp
+	msr RCSP_EL0, c10
 	br	PTR(16)
 END(_rtld_bind_start)
 
@@ -352,11 +364,17 @@ pop_cap_into:
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
 
-	// Jump to target function in sandbox
+    // Set Restricted SP
 	mov c10, csp
 	msr RCSP_EL0, c10
+
+    // Jump to target function in sandbox
 	ldr	c9, data_cap_into
 	blrr	c9
+
+	// Restore Executive SP
+	mrs c10, RCSP_EL0
+	mov csp, c10
 
 	// Pop c30
 	stp	c0, c1, [csp, #-32]!
@@ -390,6 +408,10 @@ push_cap_from:
 pop_cap_from:
     .chericap	0
 
+    // Set Executive SP
+    mrs c10, RCSP_EL0
+    mov csp, c10
+
     // Push c30
     stp	c0, c1, [csp, #-32]!
     stp	c2, c3, [csp, #-32]!
@@ -419,7 +441,7 @@ pop_cap_from:
     stp	czr, c8, [csp, #-32]!
 
     scbnds	c0, csp, #16
-    ldr	c9, pop_cap_into
+    ldr	c9, pop_cap_from
     blr	c9
 
     ldp	c30, c8, [csp], #32
@@ -427,6 +449,10 @@ pop_cap_from:
     ldp	c4, c5, [csp], #32
     ldp	c2, c3, [csp], #32
     ldp	c0, c1, [csp], #32
+
+    // Restore Restricted SP
+    mov c10, csp
+    msr RCSP_EL0, c10
 
     // Return back into the sandbox
 	retr	c30

@@ -140,6 +140,19 @@ make_data_cap(const Elf_Sym *def, const struct Struct_Obj_Entry *defobj)
 
 #ifdef __CHERI_PURE_CAPABILITY__
 
+/* Trampolines for domain transition */
+typedef enum trampoline_type {
+    // Trampoline intercepting calls into the sandbox
+    CALL_INTO_SANDBOX = 0,
+    // Trampoline intercepting calls to trusted symbols from the sandbox
+    CALL_FROM_SANDBOX = 1
+} trampoline_type;
+
+int tramp_pgs_append(uintptr_t *out, uintptr_t data, trampoline_type type);
+
+struct tramp_stks *tramp_stks_get(void);
+
+
 #define make_function_pointer(def, defobj) \
 	make_function_cap(def, defobj)
 
@@ -148,11 +161,30 @@ make_data_cap(const Elf_Sym *def, const struct Struct_Obj_Entry *defobj)
 #define call_init_pointer(obj, target) rtld_fatal("%s: _init or _fini used!", obj->path)
 
 /* TODO: Per-function captable/PLT/FNDESC support */
-#define call_init_array_pointer(obj, target)				\
-	(((InitArrFunc)(target).value)(main_argc, main_argv, environ))
+#define call_init_array_pointer call_init_array_pointer
+#define call_fini_array_pointer call_fini_array_pointer
 
-#define call_fini_array_pointer(obj, target)				\
-	(((InitFunc)(target).value)())
+static inline void call_init_array_pointer(Obj_Entry *obj, InitArrayEntry target)
+{
+    /* For sandboxed object wrap init with a trampoline */
+    if (obj_is_sandboxed(obj)
+        && tramp_pgs_append(&(target.value), target.value, CALL_INTO_SANDBOX)) {
+        _rtld_error("Couldn't create trampoline page for init");
+        rtld_die();
+    }
+    ((InitArrFunc)(target.value))(main_argc, main_argv, environ);
+}
+
+static inline void call_fini_array_pointer(Obj_Entry *obj, InitArrayEntry target)
+{
+    /* For sandboxed object wrap fini with a trampoline */
+    if (obj_is_sandboxed(obj)
+        && tramp_pgs_append(&(target.value), target.value, CALL_INTO_SANDBOX)) {
+        _rtld_error("Couldn't create trampoline page for init");
+        rtld_die();
+    }
+    ((InitFunc)(target.value))();
+}
 
 #else /* __CHERI_PURE_CAPABILITY__ */
 
@@ -205,17 +237,6 @@ extern void *__tls_get_addr(tls_index *ti);
 #define	TLS_DTV_OFFSET	0
 
 #ifdef __CHERI_PURE_CAPABILITY__
-
-typedef enum trampoline_type {
-    // Trampoline intercepting calls into the sandbox
-    CALL_INTO_SANDBOX = 0,
-    // Trampoline intercepting calls to trusted symbols from the sandbox
-    CALL_FROM_SANDBOX = 1
-} trampoline_type;
-
-int tramp_pgs_append(uintptr_t *out, uintptr_t data, trampoline_type type);
-
-struct tramp_stks *tramp_stks_get(void);
 
 static inline void
 fix_obj_mapping_cap_permissions(Obj_Entry *obj, const char *path __unused)

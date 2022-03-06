@@ -412,7 +412,8 @@ typedef struct Struct_Obj_Entry {
 } Obj_Entry;
 
 #define obj_is_sandboxed(obj) \
-    ((cheri_getperm((obj)->mapbase) & CHERI_PERM_EXECUTIVE) == 0)
+    (((cheri_getperm((obj)->mapbase) & CHERI_PERM_EXECUTIVE) == 0) && \
+     ((obj)->mainprog == false))
 
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
