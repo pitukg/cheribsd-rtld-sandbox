@@ -30,7 +30,7 @@
 #include <string.h>
 
 static const char *message = "Hello, world!";
-static char buffer[32];
+static char buffer[14];
 
 const char *
 hello_world()
