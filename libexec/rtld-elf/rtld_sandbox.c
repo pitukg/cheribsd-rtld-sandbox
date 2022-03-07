@@ -49,19 +49,24 @@ typedef struct Struct_AllowedSymbol {
 } AllowedSymbol;
 
 static const AllowedSymbol allowed_symbols[] = {
-        {"__cxa_finalize", STT_FUNC},       /* Weak symbol defined in libc
-                                               calling (C++) dtors */
-        {"_Jv_RegisterClasses", STT_FUNC},  /* Weak symbol defined in libc
-                                               for GNU Java compiler */
-	{"__stack_chk_fail", STT_FUNC},
-	{"__stack_chk_guard", STT_OBJECT},
-        {"malloc", STT_FUNC},
-	{"calloc", STT_FUNC},
-        {"free", STT_FUNC},
-        {"memcpy", STT_FUNC},
-        {"memset", STT_FUNC},
-        {"", 0U}
-        // TODO find out list of allowed symbols
+		{"__cxa_finalize", STT_FUNC},		/* Weak symbol defined in libc calling (C++) dtors */
+		{"_Jv_RegisterClasses", STT_FUNC},	/* Weak symbol defined in libc for GNU Java compiler */
+		{"__stack_chk_fail", STT_FUNC},
+		{"__stack_chk_guard", STT_OBJECT},
+		{"malloc", STT_FUNC},
+		{"calloc", STT_FUNC},
+		{"free", STT_FUNC},
+		{"memcmp", STT_FUNC},
+		{"memcpy", STT_FUNC},
+		{"memset", STT_FUNC},
+		{"strlen", STT_FUNC},
+		{"abort", STT_FUNC},
+		{"atof", STT_FUNC},
+		{"frexp", STT_FUNC},
+		{"modf", STT_FUNC},
+		{"pow", STT_FUNC},
+		{"", 0U}
+		// TODO find out list of allowed symbols
 };
 
 #if 0
