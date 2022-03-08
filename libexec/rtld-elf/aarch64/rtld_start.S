@@ -178,7 +178,11 @@ _rtld_bind_start_body:
 	 /* Restore link register saved by the plt code */
 	ldp	PTR(zr), PTR(30), [PTRN(sp)], #(PTR_WIDTH * 2)
 
-	/* Call into the correct function */
+	/* Call into the correct function.
+	 * This will be a trampoline if we're coming from a sandbox.
+	 * Copy back the SP to the Restricted SP because the trampoline assumes
+	 * that we are coming from Restricted mode.
+	 */
 	mov c10, csp
 	msr RCSP_EL0, c10
 	br	PTR(16)
@@ -337,7 +341,9 @@ ENTRY(_rtld_tlsdesc_dynamic)
 END(_rtld_tlsdesc_dynamic)
 
 #ifdef __CHERI_PURE_CAPABILITY__
-// This is the trampoline to intercept calls into the sandbox
+/*
+ * Trampoline to intercept calls into the sandbox.
+ */
 .section	call_into_sandbox_trampoline_template,"a"
 .p2align	4
 data_cap_into:
@@ -364,11 +370,11 @@ pop_cap_into:
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
 
-    // Set Restricted SP
+	// Set Restricted SP
 	mov c10, csp
 	msr RCSP_EL0, c10
 
-    // Jump to target function in sandbox
+	// Jump to target function in sandbox
 	ldr	c9, data_cap_into
 	blrr	c9
 
@@ -385,75 +391,77 @@ pop_cap_into:
 
 	scbnds	c0, csp, #16
 	ldr	c9, pop_cap_into
-    blr	c9
+	blr	c9
 
-    ldp	c30, c8, [csp], #32
-    ldp	c6, c7, [csp], #32
-    ldp	c4, c5, [csp], #32
-    ldp	c2, c3, [csp], #32
-    ldp	c0, c1, [csp], #32
+	ldp	c30, c8, [csp], #32
+	ldp	c6, c7, [csp], #32
+	ldp	c4, c5, [csp], #32
+	ldp	c2, c3, [csp], #32
+	ldp	c0, c1, [csp], #32
 
-    // Return to caller
-    ret	c30
+	// Return to caller
+	ret	c30
 
 
-// This is the trampoline to intercept calls from within the sandbox
-// to trusted symbols (e.g., from libc) that are allowed by the sandboxing policy
+/*
+ * Trampoline to intercept calls from within the sandbox to trusted symbols
+ * (e.g., from libc) that are permitted by the sandboxing policy.
+ */
 .section	call_from_sandbox_trampoline_template,"a"
 .p2align	4
 data_cap_from:
 	.chericap	0
 push_cap_from:
-    .chericap	0
+	.chericap	0
 pop_cap_from:
-    .chericap	0
+	.chericap	0
 
-    // Set Executive SP
-    mrs c10, RCSP_EL0
-    mov csp, c10
+	// Set Executive SP
+	mrs c10, RCSP_EL0
+	mov csp, c10
 
-    // Push c30
-    stp	c0, c1, [csp, #-32]!
-    stp	c2, c3, [csp, #-32]!
-    stp	c4, c5, [csp, #-32]!
-    stp	c6, c7, [csp, #-32]!
-    str	c8, [csp, #-16]!
+	// Push c30
+	stp	c0, c1, [csp, #-32]!
+	stp	c2, c3, [csp, #-32]!
+	stp	c4, c5, [csp, #-32]!
+	stp	c6, c7, [csp, #-32]!
+	str	c8, [csp, #-16]!
 
-    mov	c0, c30
-    ldr	c9, push_cap_from
-    blr	c9
+	mov	c0, c30
+	ldr	c9, push_cap_from
+	blr	c9
 
-    ldr	c8, [csp], #16
-    ldp	c6, c7, [csp], #32
-    ldp	c4, c5, [csp], #32
-    ldp	c2, c3, [csp], #32
-    ldp	c0, c1, [csp], #32
+	ldr	c8, [csp], #16
+	ldp	c6, c7, [csp], #32
+	ldp	c4, c5, [csp], #32
+	ldp	c2, c3, [csp], #32
+	ldp	c0, c1, [csp], #32
 
-    // Jump to target function
-    ldr	c9, data_cap_from
-    blr	c9
+	// Jump to target function
+	ldr	c9, data_cap_from
+	blr	c9
 
-    // Pop c30
-    stp	c0, c1, [csp, #-32]!
-    stp	c2, c3, [csp, #-32]!
-    stp	c4, c5, [csp, #-32]!
-    stp	c6, c7, [csp, #-32]!
-    stp	czr, c8, [csp, #-32]!
+	// Pop c30
+	stp	c0, c1, [csp, #-32]!
+	stp	c2, c3, [csp, #-32]!
+	stp	c4, c5, [csp, #-32]!
+	stp	c6, c7, [csp, #-32]!
+	stp	czr, c8, [csp, #-32]!
 
-    scbnds	c0, csp, #16
-    ldr	c9, pop_cap_from
-    blr	c9
+	scbnds	c0, csp, #16
+	ldr	c9, pop_cap_from
+	blr	c9
 
-    ldp	c30, c8, [csp], #32
-    ldp	c6, c7, [csp], #32
-    ldp	c4, c5, [csp], #32
-    ldp	c2, c3, [csp], #32
-    ldp	c0, c1, [csp], #32
+	ldp	c30, c8, [csp], #32
+	ldp	c6, c7, [csp], #32
+	ldp	c4, c5, [csp], #32
+	ldp	c2, c3, [csp], #32
+	ldp	c0, c1, [csp], #32
 
-    // Restore Restricted SP
-    mov c10, csp
-    msr RCSP_EL0, c10
+	// Restore Restricted SP
+	mov c10, csp
+	msr RCSP_EL0, c10
 
-    // Return back into the sandbox
+	// Return back into the sandbox
 	retr	c30
 #endif
