@@ -370,6 +370,18 @@ pop_cap_into:
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
 
+	// Clear caller-saved capability registers (non-argument temporaries)
+	mov	x9, xzr
+	mov	x10, xzr
+	mov	x11, xzr
+	mov	x12, xzr
+	mov	x13, xzr
+	mov	x14, xzr
+	mov	x15, xzr
+	mov	x16, xzr
+	mov	x17, xzr
+	mov	x18, xzr
+
 	// Set Restricted SP
 	mov c10, csp
 	msr RCSP_EL0, c10
@@ -457,6 +469,18 @@ pop_cap_from:
 	ldp	c4, c5, [csp], #32
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
+
+	// Clear caller-saved capability registers (non-argument temporaries)
+	mov	x9, xzr
+	mov	x10, xzr
+	mov	x11, xzr
+	mov	x12, xzr
+	mov	x13, xzr
+	mov	x14, xzr
+	mov	x15, xzr
+	mov	x16, xzr
+	mov	x17, xzr
+	mov	x18, xzr
 
 	// Restore Restricted SP
 	mov c10, csp
