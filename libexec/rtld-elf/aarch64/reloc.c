@@ -201,9 +201,9 @@ tramp_stk_create(struct tramp_stk **out)
 }
 
 static int
-tramp_stk_push(void *data)
+tramp_stk_push_retaddr(void *retaddr)
 {
-	if (0x40ac7a5d == (uintptr_t)data)
+	if (0x40ac7a5d == (uintptr_t)retaddr)
 		return 0;
 
 	struct tramp_stks *stks = tramp_stks_fs.getter();
@@ -226,13 +226,13 @@ start:
 	if (!cheri_gettag(p))
 		goto retry;
 
-	*p = data;
+	*p = retaddr;
 
 	return 0;
 }
 
 static int
-tramp_stk_pop(void **out)
+tramp_stk_pop_retaddr(void **p_retaddr)
 {
 	struct tramp_stks *stks = tramp_stks_fs.getter();
 	struct tramp_stk *s = SLIST_FIRST(stks);
@@ -243,7 +243,68 @@ tramp_stk_pop(void **out)
 		}
 		s = SLIST_FIRST(stks);
 	}
-	*out = *(--s->cursor);
+	*p_retaddr = *(--s->cursor);
+	return 0;
+}
+
+#define NUM_CALLER_SAVED_REGS	(10)
+
+/*
+ * Push a frame onto the trusted stack to store the return address
+ * and the callee-saved capability registers whose flow into the sandbox is prevented.
+ * When this returns, retaddr will be written into the bottom word of the frame.
+ */
+static int
+tramp_stk_push_retaddr_and_regs_frame(void *retaddr, void **p_frame)
+{
+	if (0x40ac7a5d == (uintptr_t)retaddr)
+		return 0;
+
+	struct tramp_stks *stks = tramp_stks_fs.getter();
+	int n_retry = 0;
+	struct tramp_stk *s = SLIST_FIRST(stks);
+	goto start;
+
+	retry:
+	if (n_retry++)
+		rtld_die();
+	if (tramp_stk_create(&s))
+		rtld_die();
+	SLIST_INSERT_HEAD(stks, s, entries);
+
+	start:
+	if (!s)
+		goto retry;
+
+	void **p = cheri_setbounds(s->cursor, (1+NUM_CALLER_SAVED_REGS)*sizeof(*p));
+	s->cursor += (1+NUM_CALLER_SAVED_REGS);
+	if (!cheri_gettag(p))
+		goto retry;
+
+	*p = retaddr;
+	*p_frame = p;
+
+	return 0;
+}
+
+static int
+tramp_stk_pop_retaddr_and_regs_frame(void **p_retaddr, void **p_frame)
+{
+	struct tramp_stks *stks = tramp_stks_fs.getter();
+	struct tramp_stk *s = SLIST_FIRST(stks);
+	if (s->cursor == s->buf) {
+		SLIST_REMOVE_HEAD(stks, entries);
+		if (munmap(s, getpagesize())) {
+			rtld_die();
+		}
+		s = SLIST_FIRST(stks);
+	}
+	s->cursor -= (1+NUM_CALLER_SAVED_REGS);
+
+	/* Pop return address */
+	*p_retaddr = *(s->cursor);
+	*p_frame = cheri_setbounds(s->cursor, (1+NUM_CALLER_SAVED_REGS)*sizeof(*p_frame));
+
 	return 0;
 }
 
@@ -277,19 +338,25 @@ tramp_pg_create(struct tramp_pg **out)
 
 int
 tramp_pgs_append(uintptr_t *out, uintptr_t data, trampoline_type type) {
-    static struct tramp_pgs pgs = SLIST_HEAD_INITIALIZER(pgs);
+	static struct tramp_pgs pgs = SLIST_HEAD_INITIALIZER(pgs);
 
-    extern const struct tramp __start_call_into_sandbox_trampoline_template;
-    extern const struct tramp __start_call_from_sandbox_trampoline_template;
-    const struct tramp *template;
-    switch (type) {
-        case CALL_INTO_SANDBOX:
-            template = &__start_call_into_sandbox_trampoline_template;
-            break;
-        case CALL_FROM_SANDBOX:
-            template = &__start_call_from_sandbox_trampoline_template;
-            break;
-    }
+	extern const struct tramp __start_call_into_sandbox_trampoline_template;
+	extern const struct tramp __start_call_from_sandbox_trampoline_template;
+	const struct tramp *template;
+	void *push_fn, *pop_fn;
+
+	switch (type) {
+		case CALL_INTO_SANDBOX:
+			template = &__start_call_into_sandbox_trampoline_template;
+			push_fn = tramp_stk_push_retaddr_and_regs_frame;
+			pop_fn = tramp_stk_pop_retaddr_and_regs_frame;
+			break;
+		case CALL_FROM_SANDBOX:
+			template = &__start_call_from_sandbox_trampoline_template;
+			push_fn = tramp_stk_push_retaddr;
+			pop_fn = tramp_stk_pop_retaddr;
+			break;
+	}
 
 	int n_retry = 0;
 	struct tramp_pg *pg = SLIST_FIRST(&pgs);
@@ -315,8 +382,8 @@ start:
 
 	memcpy(t, template, len);
 	t->data = data;
-	t->push = tramp_stk_push;
-	t->pop = tramp_stk_pop;
+	t->push = push_fn;
+	t->pop = pop_fn;
 	t = cheri_clearperm(t, FUNC_PTR_REMOVE_PERMS);
 	*out = cheri_sealentry((uintptr_t)t->code);
 

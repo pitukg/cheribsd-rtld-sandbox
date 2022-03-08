@@ -343,6 +343,8 @@ END(_rtld_tlsdesc_dynamic)
 #ifdef __CHERI_PURE_CAPABILITY__
 /*
  * Trampoline to intercept calls into the sandbox.
+ * Push function cap is tramp_stk_push_retaddr_and_regs_frame,
+ * pop function cap is tramp_stk_pop_retaddr_and_regs_frame.
  */
 .section	call_into_sandbox_trampoline_template,"a"
 .p2align	4
@@ -358,20 +360,28 @@ pop_cap_into:
 	stp	c2, c3, [csp, #-32]!
 	stp	c4, c5, [csp, #-32]!
 	stp	c6, c7, [csp, #-32]!
-	str	c8, [csp, #-16]!
+	stp	czr, c8, [csp, #-32]!
 
 	mov	c0, c30
+	scbnds	c1, csp, #16
 	ldr	c9, push_cap_into
 	blr	c9
 
-	ldr	c8, [csp], #16
+	ldp	c9, c8, [csp], #32
 	ldp	c6, c7, [csp], #32
 	ldp	c4, c5, [csp], #32
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
 
+	// Save callee-saved capability registers on the trusted stack
+	stp	c19, c20, [c9, #16]!
+	stp	c21, c22, [c9, #32]!
+	stp	c23, c24, [c9, #32]!
+	stp	c25, c26, [c9, #32]!
+	stp	c27, c28, [c9, #32]!
+
 	// Clear caller-saved capability registers (non-argument temporaries)
-	mov	x9, xzr
+	// c9 is used as a temporary register later to hold the branch address
 	mov	x10, xzr
 	mov	x11, xzr
 	mov	x12, xzr
@@ -381,10 +391,22 @@ pop_cap_into:
 	mov	x16, xzr
 	mov	x17, xzr
 	mov	x18, xzr
+	// Clear callee-saved registers which are stored on the trusted stack
+	mov	x19, xzr
+	mov	x20, xzr
+	mov	x21, xzr
+	mov	x22, xzr
+	mov	x23, xzr
+	mov	x24, xzr
+	mov	x25, xzr
+	mov	x26, xzr
+	mov	x27, xzr
+	mov	x28, xzr
 
 	// Set Restricted SP
-	mov c10, csp
-	msr RCSP_EL0, c10
+	mov	c9, csp
+	// TODO set bounds of c9
+	msr	RCSP_EL0, c9
 
 	// Jump to target function in sandbox
 	ldr	c9, data_cap_into
@@ -400,16 +422,26 @@ pop_cap_into:
 	stp	c4, c5, [csp, #-32]!
 	stp	c6, c7, [csp, #-32]!
 	stp	czr, c8, [csp, #-32]!
-
 	scbnds	c0, csp, #16
+	str	czr, [csp, #-16]!
+	scbnds	c1, csp, #16
+
 	ldr	c9, pop_cap_into
 	blr	c9
 
+	ldr	c9, [csp], #16
 	ldp	c30, c8, [csp], #32
 	ldp	c6, c7, [csp], #32
 	ldp	c4, c5, [csp], #32
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
+
+	// Restore callee-saved registers from the trusted stack
+	ldp	c19, c20, [c9, #16]!
+	ldp	c21, c22, [c9, #32]!
+	ldp	c23, c24, [c9, #32]!
+	ldp	c25, c26, [c9, #32]!
+	ldp	c27, c28, [c9, #32]!
 
 	// Return to caller
 	ret	c30
@@ -418,6 +450,8 @@ pop_cap_into:
 /*
  * Trampoline to intercept calls from within the sandbox to trusted symbols
  * (e.g., from libc) that are permitted by the sandboxing policy.
+ * Push function cap is tramp_stk_push_retaddr,
+ * pop function cap is tramp_stk_pop_retaddr.
  */
 .section	call_from_sandbox_trampoline_template,"a"
 .p2align	4
@@ -471,7 +505,7 @@ pop_cap_from:
 	ldp	c0, c1, [csp], #32
 
 	// Clear caller-saved capability registers (non-argument temporaries)
-	mov	x9, xzr
+	// c9 is used as a temporary later
 	mov	x10, xzr
 	mov	x11, xzr
 	mov	x12, xzr
@@ -483,8 +517,9 @@ pop_cap_from:
 	mov	x18, xzr
 
 	// Restore Restricted SP
-	mov c10, csp
-	msr RCSP_EL0, c10
+	mov	c9, csp
+	msr	RCSP_EL0, c9
+	mov	x9, xzr
 
 	// Return back into the sandbox
 	retr	c30
