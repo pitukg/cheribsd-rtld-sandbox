@@ -1,3 +1,6 @@
-add_compile_definitions(BENCHMARK_DLOPEN=1)
+add_compile_definitions(BENCHMARK_DLOPEN=1, TEST_LIBRARIES_ROOT=\"/home/gp472/testlibs\")
 include_directories(../lib/libpmc)
 add_executable(dlopen-benchmark dlopen-benchmark.c)
+add_executable(function-call-benchmark function-call-benchmark.c)
+add_executable(dlsym-benchmark dlsym-benchmark.c)
+add_executable(lazy-binding-benchmark lazy-binding-benchmark.c)
