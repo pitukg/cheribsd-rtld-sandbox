@@ -65,6 +65,7 @@ static const AllowedSymbol allowed_symbols[] = {
 		{"frexp", STT_FUNC},
 		{"modf", STT_FUNC},
 		{"pow", STT_FUNC},
+		{"gmtime", STT_FUNC},
 		{"", 0U}
 		// TODO find out list of allowed symbols
 };
