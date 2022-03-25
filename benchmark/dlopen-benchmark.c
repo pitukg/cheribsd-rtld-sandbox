@@ -83,7 +83,7 @@ main(int argc, char *argv[])
 #ifdef BENCHMARK_DLOPEN
 	xo_open_container("dlopen-dlclose");
 #else
-	xo_open_container("dlopen_sandbox-dlclose");
+	xo_open_container("dlopen-dlclose-sandbox");
 #endif
 
 	xo_emit("{Lwc:Outer iterations}{:outer-iterations/%u}", NO_OUTER_ITERATIONS);
@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 #ifdef BENCHMARK_DLOPEN
 	xo_close_container("dlopen-dlclose");
 #else
-	xo_close_container("dlopen_sandbox-dlclose");
+	xo_close_container("dlopen-dlclose-sandbox");
 #endif
 
 	/* Finish writing out data */
