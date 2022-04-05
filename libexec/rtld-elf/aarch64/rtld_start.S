@@ -411,6 +411,9 @@ pop_cap_into:
 	mov	x27, xzr
 	mov	x28, xzr
 
+	mov	c9, csp
+	msr	RCSP_EL0, c9
+
 /*
 	// Set Restricted SP and FP
 	mov	c9, csp
@@ -431,6 +434,9 @@ pop_cap_into:
 	blrr	c9
 
 //	ldr	c30, [csp], #16
+
+	mrs	c10, RCSP_EL0
+	mov	csp, c10
 
 /*
 	// Restore Executive SP and FP
