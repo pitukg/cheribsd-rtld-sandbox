@@ -398,7 +398,6 @@ pop_cap_into:
 	mov	x16, xzr
 	mov	x17, xzr
 	mov	x18, xzr
-
 	// Clear callee-saved registers which are stored on the trusted stack
 	mov	x19, xzr
 	mov	x20, xzr
@@ -411,10 +410,6 @@ pop_cap_into:
 	mov	x27, xzr
 	mov	x28, xzr
 
-	mov	c9, csp
-	msr	RCSP_EL0, c9
-
-/*
 	// Set Restricted SP and FP
 	mov	c9, csp
 	gcbase	x10, csp
@@ -425,27 +420,17 @@ pop_cap_into:
 	cpyvalue	c12, c12, c9
 	mov	c29, c13
 	msr	RCSP_EL0, c12
-*/
-
-//	str	c30, [csp, #-16]!
 
 	// Jump to target function in sandbox
 	ldr	c9, data_cap_into
 	blrr	c9
 
-//	ldr	c30, [csp], #16
-
-	mrs	c10, RCSP_EL0
-	mov	csp, c10
-
-/*
 	// Restore Executive SP and FP
 	mrs c10, RCSP_EL0
 	mov	c11, csp
 	cpyvalue	c12, c11, c10
 	cpyvalue	c29, c11, c29
 	mov csp, c12
-*/
 
 	// Pop c30
 	stp	c0, c1, [csp, #-32]!
@@ -476,6 +461,7 @@ pop_cap_into:
 
 	// Return to caller
 	ret	c30
+
 
 /*
  * Trampoline to intercept calls from within the sandbox to trusted symbols
