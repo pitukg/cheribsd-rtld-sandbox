@@ -8,11 +8,12 @@
 #include <libxo/xo.h>
 #include <pmc.h>
 
-#define NUM_COUNTERS (3U)
+#define NUM_COUNTERS (4U)
 static const char *counter_set[] = {
 		"CPU_CYCLES",
 		"BR_MIS_PRED",
-		"INST_RETIRED"
+		"INST_RETIRED",
+		"L1D_CACHE_REFILL"
 };
 
 static pmc_id_t pmcids[NUM_COUNTERS];
