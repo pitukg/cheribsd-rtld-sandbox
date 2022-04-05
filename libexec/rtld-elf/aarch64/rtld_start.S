@@ -365,7 +365,6 @@ push_cap_into:
 pop_cap_into:
 	.chericap	0
 
-/*
 	// Push c30
 	stp	c0, c1, [csp, #-32]!
 	stp	c2, c3, [csp, #-32]!
@@ -383,6 +382,8 @@ pop_cap_into:
 	ldp	c4, c5, [csp], #32
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
+
+/*
 
 	// Save callee-saved capability registers on the trusted stack
 	stp	c19, c20, [c9, #16]!
@@ -426,15 +427,14 @@ pop_cap_into:
 	msr	RCSP_EL0, c12
 */
 
-	str	c30, [csp, #-16]!
+//	str	c30, [csp, #-16]!
 
 	// Jump to target function in sandbox
 	ldr	c9, data_cap_into
 	blrr	c9
 
-	ldr	c30, [csp], #16
+//	ldr	c30, [csp], #16
 
-	ret	c30
 /*
 	// Restore Executive SP and FP
 	mrs c10, RCSP_EL0
@@ -442,6 +442,7 @@ pop_cap_into:
 	cpyvalue	c12, c11, c10
 	cpyvalue	c29, c11, c29
 	mov csp, c12
+*/
 
 	// Pop c30
 	stp	c0, c1, [csp, #-32]!
@@ -463,6 +464,8 @@ pop_cap_into:
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
 
+/*
+
 	// Restore callee-saved registers from the trusted stack
 	ldp	c19, c20, [c9, #16]!
 	ldp	c21, c22, [c9, #32]!
@@ -470,9 +473,9 @@ pop_cap_into:
 	ldp	c25, c26, [c9, #32]!
 	ldp	c27, c28, [c9, #32]!
 
+*/
 	// Return to caller
 	ret	c30
-*/
 
 /*
  * Trampoline to intercept calls from within the sandbox to trusted symbols
