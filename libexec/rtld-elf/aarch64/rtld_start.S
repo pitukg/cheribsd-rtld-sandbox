@@ -426,10 +426,15 @@ pop_cap_into:
 	msr	RCSP_EL0, c12
 */
 
+	str	c30, [csp, #-16]!
+
 	// Jump to target function in sandbox
 	ldr	c9, data_cap_into
-	brr	c9
-//	blrr	c9
+	blrr	c9
+
+	ldr	c30, [csp], #16
+
+	ret	c30
 /*
 	// Restore Executive SP and FP
 	mrs c10, RCSP_EL0
