@@ -390,6 +390,7 @@ pop_cap_into:
 	stp	c23, c24, [c9, #32]!
 	stp	c25, c26, [c9, #32]!
 	stp	c27, c28, [c9, #32]!
+*/
 
 	// Clear caller-saved capability registers (non-argument temporaries)
 	// c9 is used as a temporary register later to hold the branch address
@@ -399,6 +400,8 @@ pop_cap_into:
 	mov	x16, xzr
 	mov	x17, xzr
 	mov	x18, xzr
+
+/*
 	// Clear callee-saved registers which are stored on the trusted stack
 	mov	x19, xzr
 	mov	x20, xzr
