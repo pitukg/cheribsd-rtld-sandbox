@@ -383,15 +383,12 @@ pop_cap_into:
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
 
-/*
-
 	// Save callee-saved capability registers on the trusted stack
 	stp	c19, c20, [c9, #16]!
 	stp	c21, c22, [c9, #32]!
 	stp	c23, c24, [c9, #32]!
 	stp	c25, c26, [c9, #32]!
 	stp	c27, c28, [c9, #32]!
-*/
 
 	// Clear caller-saved capability registers (non-argument temporaries)
 	// c9 is used as a temporary register later to hold the branch address
@@ -402,7 +399,6 @@ pop_cap_into:
 	mov	x17, xzr
 	mov	x18, xzr
 
-/*
 	// Clear callee-saved registers which are stored on the trusted stack
 	mov	x19, xzr
 	mov	x20, xzr
@@ -415,6 +411,7 @@ pop_cap_into:
 	mov	x27, xzr
 	mov	x28, xzr
 
+/*
 	// Set Restricted SP and FP
 	mov	c9, csp
 	gcbase	x10, csp
@@ -464,8 +461,6 @@ pop_cap_into:
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
 
-/*
-
 	// Restore callee-saved registers from the trusted stack
 	ldp	c19, c20, [c9, #16]!
 	ldp	c21, c22, [c9, #32]!
@@ -473,7 +468,6 @@ pop_cap_into:
 	ldp	c25, c26, [c9, #32]!
 	ldp	c27, c28, [c9, #32]!
 
-*/
 	// Return to caller
 	ret	c30
 
