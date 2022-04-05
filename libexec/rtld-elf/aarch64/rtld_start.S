@@ -101,14 +101,17 @@ END(.rtld_start)
  * x17 = &_rtld_bind_start
  */
 ENTRY(_rtld_bind_start)
-	/* Set Executive SP if coming from sandbox
+	/* Set Executive SP and FP if coming from sandbox
 	 * c16 = &GOT[2] is an arbitrary pointer that has the Executive bit set
 	 * if the object is not sandboxed. */
 	gcperm x9, c16
 	/* Permission bit #1 is Executive */
 	tbnz x9, #1, _rtld_bind_start_body
 	mrs c10, RCSP_EL0
-	mov csp, c10
+	mov	c11, csp
+	cpyvalue	c12, c11, c10
+	cpyvalue	c29, c11, c29
+	mov csp, c12
 
 _rtld_bind_start_body:
 	mov	PTR(17), PTRN(sp)
@@ -183,8 +186,15 @@ _rtld_bind_start_body:
 	 * Copy back the SP to the Restricted SP because the trampoline assumes
 	 * that we are coming from Restricted mode.
 	 */
-	mov c10, csp
-	msr RCSP_EL0, c10
+	mov	c9, csp
+	gcbase	x10, csp
+	gcoff	x11, csp
+	scvalue	c12, c9, x10
+	scbnds	c12, c12, x11
+	cpyvalue	c13, c12, c29
+	cpyvalue	c12, c12, c9
+	mov	c29, c13
+	msr	RCSP_EL0, c12
 	br	PTR(16)
 END(_rtld_bind_start)
 
@@ -382,10 +392,7 @@ pop_cap_into:
 
 	// Clear caller-saved capability registers (non-argument temporaries)
 	// c9 is used as a temporary register later to hold the branch address
-	mov	x10, xzr
-	mov	x11, xzr
-	mov	x12, xzr
-	mov	x13, xzr
+	// c10-c13 are used later as temporaries without excessive privileges
 	mov	x14, xzr
 	mov	x15, xzr
 	mov	x16, xzr
@@ -403,18 +410,27 @@ pop_cap_into:
 	mov	x27, xzr
 	mov	x28, xzr
 
-	// Set Restricted SP
+	// Set Restricted SP and FP
 	mov	c9, csp
-	// TODO set bounds of c9
-	msr	RCSP_EL0, c9
+	gcbase	x10, csp
+	gcoff	x11, csp
+	scvalue	c12, c9, x10
+	scbnds	c12, c12, x11
+	cpyvalue	c13, c12, c29
+	cpyvalue	c12, c12, c9
+	mov	c29, c13
+	msr	RCSP_EL0, c12
 
 	// Jump to target function in sandbox
 	ldr	c9, data_cap_into
 	blrr	c9
 
-	// Restore Executive SP
+	// Restore Executive SP and FP
 	mrs c10, RCSP_EL0
-	mov csp, c10
+	mov	c11, csp
+	cpyvalue	c12, c11, c10
+	cpyvalue	c29, c11, c29
+	mov csp, c12
 
 	// Pop c30
 	stp	c0, c1, [csp, #-32]!
@@ -462,9 +478,12 @@ push_cap_from:
 pop_cap_from:
 	.chericap	0
 
-	// Set Executive SP
+	// Set Executive SP and FP
 	mrs c10, RCSP_EL0
-	mov csp, c10
+	mov	c11, csp
+	cpyvalue	c12, c11, c10
+	cpyvalue	c29, c11, c29
+	mov csp, c12
 
 	// Push c30
 	stp	c0, c1, [csp, #-32]!
@@ -504,22 +523,25 @@ pop_cap_from:
 	ldp	c2, c3, [csp], #32
 	ldp	c0, c1, [csp], #32
 
+	// Restore Restricted SP and FP
+	mov	c9, csp
+	gcbase	x10, csp
+	gcoff	x11, csp
+	scvalue	c12, c9, x10
+	scbnds	c12, c12, x11
+	cpyvalue	c13, c12, c29
+	cpyvalue	c12, c12, c9
+	mov	c29, c13
+	msr	RCSP_EL0, c12
+
 	// Clear caller-saved capability registers (non-argument temporaries)
-	// c9 is used as a temporary later
-	mov	x10, xzr
-	mov	x11, xzr
-	mov	x12, xzr
-	mov	x13, xzr
+	// c10-c13 have been used for temporaries without excessive privileges
+	mov	x9, xzr
 	mov	x14, xzr
 	mov	x15, xzr
 	mov	x16, xzr
 	mov	x17, xzr
 	mov	x18, xzr
-
-	// Restore Restricted SP
-	mov	c9, csp
-	msr	RCSP_EL0, c9
-	mov	x9, xzr
 
 	// Return back into the sandbox
 	retr	c30
