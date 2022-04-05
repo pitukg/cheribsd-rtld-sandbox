@@ -365,6 +365,7 @@ push_cap_into:
 pop_cap_into:
 	.chericap	0
 
+/*
 	// Push c30
 	stp	c0, c1, [csp, #-32]!
 	stp	c2, c3, [csp, #-32]!
@@ -420,11 +421,13 @@ pop_cap_into:
 	cpyvalue	c12, c12, c9
 	mov	c29, c13
 	msr	RCSP_EL0, c12
+*/
 
 	// Jump to target function in sandbox
 	ldr	c9, data_cap_into
-	blrr	c9
-
+	brr	c9
+//	blrr	c9
+/*
 	// Restore Executive SP and FP
 	mrs c10, RCSP_EL0
 	mov	c11, csp
@@ -461,7 +464,7 @@ pop_cap_into:
 
 	// Return to caller
 	ret	c30
-
+*/
 
 /*
  * Trampoline to intercept calls from within the sandbox to trusted symbols
