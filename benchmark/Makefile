@@ -64,8 +64,8 @@ benchmark-lazy-binding: benchmark-lazy-binding.o
 benchmark-lazy-binding-sandbox: benchmark-lazy-binding-sandbox.o
 	$(CPP) -o $(BUILDDIR)/$@ $(CPPLINKFLAGS) -L$(SYSROOT)/usr/lib $(BUILDDIR)/$< $(SYSROOT)/lib/libc.so.7 $(SYSROOT)/usr/lib/lib{pmc,xo,util}.so -dynamic -lutil
 
-cp-to-mdev: benchmark-dlopen benchmark-dlopen_sandbox
-	scp $(BUILDDIR)/benchmark-dlopen $(BUILDDIR)/benchmark-dlopen_sandbox mdev:benchmark
+#cp-to-mdev: benchmark-dlopen benchmark-dlopen_sandbox
+#	scp $(BUILDDIR)/benchmark-dlopen $(BUILDDIR)/benchmark-dlopen_sandbox mdev:benchmark
 
 clean:
-	rm $(BUILDDIR)/*.o $(BUILDDIR)/benchmark-dlopen $(BUILDDIR)/benchmark-dlopen_sandbox $(BUILDDIR)/benchmark-function-call $(BUILDDIR)/benchmark-function-call-sandbox
+	rm $(BUILDDIR)/*.o $(BUILDDIR)/benchmark-dlopen $(BUILDDIR)/benchmark-dlopen_sandbox $(BUILDDIR)/benchmark-function-call $(BUILDDIR)/benchmark-function-call-sandbox  $(BUILDDIR)/benchmark-dlsym $(BUILDDIR)/benchmark-dlsym-sandbox $(BUILDDIR)/benchmark-lazy-binding $(BUILDDIR)/benchmark-lazy-binding-sandbox
