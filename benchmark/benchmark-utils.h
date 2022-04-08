@@ -7,6 +7,7 @@
 
 #include <libxo/xo.h>
 #include <pmc.h>
+#include <sys/cpuset.h>
 
 #define NUM_COUNTERS (4U)
 static const char *counter_set[] = {
@@ -17,6 +18,18 @@ static const char *counter_set[] = {
 };
 
 static pmc_id_t pmcids[NUM_COUNTERS];
+
+static void
+pin_to_cpu(void)
+{
+	cpuset_t cpuset_mask;
+	/* Pin the benchmark to CPU 0 */
+	CPU_ZERO(&cpuset_mask);
+	CPU_SET(0, &cpuset_mask);
+	if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpuset_mask), &cpuset_mask) < 0) {
+		xo_err(EX_OSERR, "FAIL: cpuset_setaffinity (%s)", strerror(errno));
+	}
+}
 
 static void
 pmc_setup_run(void)

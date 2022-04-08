@@ -19,7 +19,7 @@
 #endif
 
 #define NO_OUTER_ITERATIONS (1000U)
-#define NO_INNER_ITERATIONS (100U)
+#define NO_INNER_ITERATIONS (10000U)
 
 static const char *test_library_absolute_path = TEST_LIBRARIES_ROOT "/libhello_world.so";
 
@@ -31,6 +31,9 @@ main(int argc, char *argv[])
 {
 	/* Initialise PMC library */
 	pmc_init();
+
+	/* Pin benchmark to a single CPU */
+	pin_to_cpu();
 
 	/* Open the test library */
 	void *handle = DLOPEN(test_library_absolute_path, RTLD_NOW);

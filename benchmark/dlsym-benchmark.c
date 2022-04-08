@@ -33,6 +33,9 @@ main(int argc, char *argv[])
 	/* Initialise PMC library */
 	pmc_init();
 
+	/* Pin benchmark to a single CPU */
+	pin_to_cpu();
+
 	/* Initialise names */
 	for (unsigned inner_it_no = 0; inner_it_no < NO_INNER_ITERATIONS; ++inner_it_no) {
 		sprintf(namebufs[inner_it_no], "hello_world_%d", inner_it_no+1);

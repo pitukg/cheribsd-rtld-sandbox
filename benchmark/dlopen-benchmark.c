@@ -21,12 +21,11 @@
 #define NO_OUTER_ITERATIONS (1000U)
 #define NO_INNER_ITERATIONS (100U)
 
-#define NUM_TEST_LIBRARIES (1U)
+#define NUM_TEST_LIBRARIES (3U)
 static const char *test_library_absolute_paths[] = {
 	TEST_LIBRARIES_ROOT "/libhello_world.so",
-	TEST_LIBRARIES_ROOT "/libglobvar.so",
-//	"/home/gp472/ld-exploration/obj/home/gp472/ld-exploration/freebsd-src/amd64.amd64/lib/libz_nofio/libz_nofio.so.6",
-//	TEST_LIBRARIES_ROOT "/libprints/libprints.so.0", /* Doesn't pass sandbox policy */
+	TEST_LIBRARIES_ROOT "/libz_nofio.so",
+	TEST_LIBRARIES_ROOT "/libpng.so",
 	NULL
 };
 
@@ -38,6 +37,9 @@ main(int argc, char *argv[])
 {
 	/* Initialise PMC library */
 	pmc_init();
+
+	/* Pin benchmark to a single CPU */
+	pin_to_cpu();
 
 	/* Run dlopen-dlclose benchmark in a loop on the set of test libraries */
 	for (unsigned testlib_no = 0; testlib_no < NUM_TEST_LIBRARIES; ++testlib_no) {
