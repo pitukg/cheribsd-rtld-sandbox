@@ -67,5 +67,8 @@ benchmark-lazy-binding-sandbox: benchmark-lazy-binding-sandbox.o
 #cp-to-mdev: benchmark-dlopen benchmark-dlopen_sandbox
 #	scp $(BUILDDIR)/benchmark-dlopen $(BUILDDIR)/benchmark-dlopen_sandbox mdev:benchmark
 
+getusecs: getusecs.c
+	$(CC) -o $(BUILDDIR)/getusecs $(CFLAGS) $<
+
 clean:
 	rm $(BUILDDIR)/*.o $(BUILDDIR)/benchmark-dlopen $(BUILDDIR)/benchmark-dlopen_sandbox $(BUILDDIR)/benchmark-function-call $(BUILDDIR)/benchmark-function-call-sandbox  $(BUILDDIR)/benchmark-dlsym $(BUILDDIR)/benchmark-dlsym-sandbox $(BUILDDIR)/benchmark-lazy-binding $(BUILDDIR)/benchmark-lazy-binding-sandbox
