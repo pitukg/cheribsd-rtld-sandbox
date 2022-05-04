@@ -607,7 +607,7 @@ int reloc_iresolve(Obj_Entry *, struct Struct_RtldLockState *);
 int reloc_iresolve_nonplt(Obj_Entry *, struct Struct_RtldLockState *);
 int reloc_gnu_ifunc(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 void ifunc_init(Elf_Auxinfo[__min_size(AT_COUNT)]);
-void init_pltgot(Obj_Entry *);
+void init_pltgot(Obj_Entry *, uintptr_t);
 void allocate_initial_tls(Obj_Entry *);
 
 void *__crt_calloc(size_t num, size_t size);

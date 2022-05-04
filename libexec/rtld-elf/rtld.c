@@ -237,6 +237,7 @@ static const char *ld_elf_hints_path;	/* Environment variable for alternative hi
 static const char *ld_tracing;	/* Called from ldd to print libs */
 static const char *ld_utrace;	/* Use utrace() to log events. */
 static bool ld_skip_init_funcs = false;	/* XXXAR: debug environment variable to verify relocation processing */
+static uintptr_t sealcap;
 static struct obj_entry_q obj_list;	/* Queue of all loaded objects */
 static Obj_Entry *obj_main;	/* The main program shared object */
 #if !defined(__mips__) || !defined(__CHERI_PURE_CAPABILITY__)
@@ -830,6 +831,17 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     dbg("initializing thread locks");
     lockdflt_init();
 
+#ifdef __CHERI_PURE_CAPABILITY__
+    /*
+     * Ask for a seal-unseal capability from the kernel for the obj
+     * pointer stored in the GOT.
+     */
+    sz = sizeof(sealcap);
+    if (sysctlbyname("security.cheri.sealcap", &sealcap, &sz,
+                     NULL, 0) < 0)
+        rtld_die();
+#endif
+
     /*
      * Load the main program, or process its program header if it is
      * already loaded.
@@ -1134,6 +1146,9 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
     uintptr_t target;
     RtldLockState lockstate;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+    obj = cheri_unseal(obj, sealcap);
+#endif
     rlock_acquire(rtld_bind_lock, &lockstate);
     if (sigsetjmp(lockstate.env, 0) != 0)
 	    lock_upgrade(rtld_bind_lock, &lockstate);
@@ -3661,7 +3676,7 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 		return (-1);
 
 	/* Set the special PLT or GOT entries. */
-	init_pltgot(obj);
+	init_pltgot(obj, sealcap);
 
 	/* Process the PLT relocations. */
 #if defined(__mips__) && defined(__CHERI_PURE_CAPABILITY__)

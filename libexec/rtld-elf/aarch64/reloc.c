@@ -63,11 +63,16 @@ void *_rtld_tlsdesc_dynamic(void *);
 void _exit(int);
 
 void
-init_pltgot(Obj_Entry *obj)
+init_pltgot(Obj_Entry *obj, uintptr_t sealcap)
 {
 
 	if (obj->pltgot != NULL) {
+#ifdef __CHERI_PURE_CAPABILITY__
+		obj->pltgot[1] = (uintptr_t) cheri_seal(obj, sealcap);
+#else
 		obj->pltgot[1] = (uintptr_t) obj;
+		(void) sealcap;
+#endif
 		obj->pltgot[2] = (uintptr_t) &_rtld_bind_start;
 	}
 }

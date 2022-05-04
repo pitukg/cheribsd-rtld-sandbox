@@ -139,6 +139,21 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 	return (retval);
 }
 
+extern int __sys___sysctlbyname(const char *name, size_t namelen, void *oldp,
+    size_t *oldlenp, const void *newp, size_t newlen);
+
+int
+sysctlbyname(const char *name, void *oldp, size_t *oldlenp,
+    const void *newp, size_t newlen)
+{
+    int retval;
+    size_t namelen;
+
+    namelen = strlen(name);
+    retval = __sys___sysctlbyname(name, namelen, oldp, oldlenp, newp, newlen);
+    return (retval);
+}
+
 #ifdef __mips__
 /*
  * Add rtld_fdprintf as the implementation of dprintf() to avoid pulling in
