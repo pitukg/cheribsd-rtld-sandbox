@@ -83,7 +83,6 @@ static char *(*get_as_fn)(int) = get_as;
 ATF_TC(libcallback_without_dlwrap_callback_fails);
 ATF_TC_HEAD(libcallback_without_dlwrap_callback_fails, tc)
 {
-	// TODO: run this test case
 	atf_tc_set_md_var(tc, "descr",
 		"Check that on callback return to sandbox without trampoline we get SIGPROT");
 }
@@ -102,7 +101,6 @@ ATF_TC_BODY(libcallback_without_dlwrap_callback_fails, tc)
 ATF_TC(libcallback_with_dlwrap_callback_passes);
 ATF_TC_HEAD(libcallback_with_dlwrap_callback_passes, tc)
 {
-	// TODO: run this test case
 	atf_tc_set_md_var(tc, "descr",
 					  "Check that on callback return to sandbox with trampoline should pass");
 }

@@ -67,15 +67,7 @@ static const AllowedSymbol allowed_symbols[] = {
 		{"pow", STT_FUNC},
 		{"gmtime", STT_FUNC},
 		{"", 0U}
-		// TODO find out list of allowed symbols
 };
-
-#if 0
-static const char *allowed_lib_prefixes[] = {
-        "libc.so",
-        "libm.so", /* C maths library */
-};
-#endif
 
 
 bool check_symbol_allowed_in_sandbox(const char *name, unsigned char type)
